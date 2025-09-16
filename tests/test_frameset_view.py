@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from pyqtgraph import ImageView
 
-from firefly.run_browser.frameset_view import FramesetView
+from run_browser.frameset_view import FramesetView
 
 
 @pytest.fixture()

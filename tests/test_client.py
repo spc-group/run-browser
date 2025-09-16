@@ -3,9 +3,10 @@ import re
 import httpx
 import pandas as pd
 import pytest
+import pytest_asyncio
 import xarray as xr
 
-from firefly.run_browser.client import DatabaseWorker
+from run_browser.client import DatabaseWorker
 
 run_metadata_urls = re.compile(
     r"^http://localhost:8000/api/v1/metadata/([a-z]+)%2F([-a-z0-9]+)$"
@@ -46,7 +47,7 @@ def run_metadata_api(httpx_mock):
     )
 
 
-@pytest.fixture()
+@pytest_asyncio.fixture()
 async def worker(tiled_client):
     worker = DatabaseWorker()
     worker.catalog = tiled_client
@@ -92,6 +93,7 @@ async def test_data_frames(worker, tiled_client):
     assert isinstance(data_frames["85573831-f4b4-4f64-b613-a6007bf03a8d"], pd.DataFrame)
 
 
+@pytest.mark.asyncio
 async def test_datasets(worker, tiled_client):
     uids = ["xarray_run"]
     arrays = await worker.datasets(
@@ -170,6 +172,7 @@ async def test_distinct_fields(worker):
         assert key in keys
 
 
+@pytest.mark.asyncio
 async def test_stream_names(worker):
     stream_names = await worker.stream_names(["85573831-f4b4-4f64-b613-a6007bf03a8d"])
     assert sorted(stream_names) == ["baseline", "primary"]

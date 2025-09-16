@@ -90,7 +90,7 @@
   <customwidget>
    <class>FramesetImageView</class>
    <extends>QWidget</extends>
-   <header>firefly.run_browser.frameset_view</header>
+   <header>run_browser.frameset_view</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

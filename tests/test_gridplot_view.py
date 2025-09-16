@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from pyqtgraph import ImageView
 
-from firefly.run_browser.gridplot_view import GridplotView
+from run_browser.gridplot_view import GridplotView
 
 
 @pytest.fixture()
@@ -49,7 +49,7 @@ def test_regrid_data(view):
 
 
 def test_update_plot(view):
-    view.ui.regrid_checkbox.setCheckState(False)
+    view.ui.regrid_checkbox.setChecked(False)
     # Update the plots
     view.plot(dataset)
     # Check the data were plotted

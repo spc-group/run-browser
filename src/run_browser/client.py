@@ -12,8 +12,6 @@ import xarray as xr
 from tiled import queries
 from tiled.client.container import Container
 
-from haven import exceptions
-
 log = logging.getLogger(__name__)
 
 
@@ -351,7 +349,7 @@ class DatabaseWorker:
                 f" r={repr(r_signal)}"
             )
             log.debug(msg)
-            raise exceptions.EmptySignalName(msg)
+            raise ValueError(msg)
         signals = [x_signal, y_signal]
         if use_reference:
             signals.append(r_signal)

@@ -990,43 +990,43 @@
   <customwidget>
    <class>FiltersWidget</class>
    <extends>QWidget</extends>
-   <header>firefly.run_browser.widgets</header>
+   <header>run_browser.widgets</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>MetadataView</class>
    <extends>QWidget</extends>
-   <header>firefly.run_browser.metadata_view</header>
+   <header>run_browser.metadata_view</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>MultiplotView</class>
    <extends>QWidget</extends>
-   <header>firefly.run_browser.multiplot_view</header>
+   <header>run_browser.multiplot_view</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>LineplotView</class>
    <extends>QWidget</extends>
-   <header>firefly.run_browser.lineplot_view</header>
+   <header>run_browser.lineplot_view</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>GridplotView</class>
    <extends>QWidget</extends>
-   <header>firefly.run_browser.gridplot_view</header>
+   <header>run_browser.gridplot_view</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>FramesetView</class>
    <extends>QWidget</extends>
-   <header>firefly.run_browser.frameset_view</header>
+   <header>run_browser.frameset_view</header>
    <container>1</container>
   </customwidget>
   <customwidget>
    <class>SpectraView</class>
    <extends>QWidget</extends>
-   <header>firefly.run_browser.spectra_view</header>
+   <header>run_browser.spectra_view</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from pyqtgraph import PlotWidget
 
-from firefly.run_browser.lineplot_view import LineplotView
+from run_browser.lineplot_view import LineplotView
 
 
 @pytest.fixture()

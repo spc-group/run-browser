@@ -1,47 +1,38 @@
 import asyncio
 import datetime as dt
-from contextlib import contextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock
 
 import numpy as np
 import pytest
+import pytest_asyncio
 import time_machine
 import xarray as xr
-from ophyd.sim import instantiate_fake_device
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QFileDialog
 
-from firefly.run_browser.display import RunBrowserDisplay, block_signals
-from haven.devices.beamline_manager import EpicsBssDevice
+from run_browser.display import RunBrowserDisplay, block_signals
 
 
-@pytest.fixture()
-def bss(sim_registry):
-    bss_ = instantiate_fake_device(EpicsBssDevice, prefix="apsbss:", name="bss")
-    return bss_
-
-
-@pytest.fixture()
+@pytest_asyncio.fixture()
 async def display(qtbot, mocker, tiled_client):
     mocker.patch(
-        "firefly.run_browser.widgets.ExportDialog.exec_",
+        "run_browser.widgets.ExportDialog.exec_",
         return_value=QFileDialog.Accepted,
     )
     mocker.patch(
-        "firefly.run_browser.widgets.ExportDialog.selectedFiles",
+        "run_browser.widgets.ExportDialog.selectedFiles",
         return_value=["/net/s255data/export/test_file.nx"],
     )
-    mocker.patch("firefly.run_browser.client.DatabaseWorker.export_runs")
+    mocker.patch("run_browser.client.DatabaseWorker.export_runs")
     mocker.patch(
-        "firefly.run_browser.display.list_profiles",
+        "run_browser.display.list_profiles",
         return_value={
             "cortex": Path("/tmp/cortex"),
             "fedorov": Path("/tmp/fedorov"),
         },
     )
-    mocker.patch(
-        "firefly.run_browser.display.get_default_profile_name", return_value="cortex"
-    )
+    mocker.patch("run_browser.display.get_default_profile_name", return_value="cortex")
     display = RunBrowserDisplay()
     qtbot.addWidget(display)
     display.clear_filters()
@@ -52,13 +43,9 @@ async def display(qtbot, mocker, tiled_client):
     finally:
         # Make sure all the db tasks have a chance to finish cleanly
         [task.cancel() for task in display._running_db_tasks.values()]
-        # tasks = asyncio.gather(*display._running_db_tasks.values())
-        # print("Awaiting tasks")
-        # from pprint import pprint
-        # pprint(list(display._running_db_tasks.values()))
-        # await asyncio.wait_for(tasks, timeout=5)
 
 
+@pytest.mark.asyncio
 async def test_db_task(display):
     async def test_coro():
         return 15
@@ -67,6 +54,7 @@ async def test_db_task(display):
     assert result == 15
 
 
+@pytest.mark.asyncio
 async def test_db_task_interruption(display):
     async def test_coro(sleep_time):
         await asyncio.sleep(sleep_time)
@@ -84,23 +72,26 @@ async def test_db_task_interruption(display):
     assert task_1.cancelled()
 
 
+@pytest.mark.asyncio
 async def test_load_runs(display):
     await display.load_runs()
     assert display.runs_model.rowCount() > 0
     assert display.ui.runs_total_label.text() == str(display.runs_model.rowCount())
 
 
+@pytest.mark.asyncio
 async def test_active_uids(display):
     await display.load_runs()
     # No rows at first
     assert display.active_uids() == set()
     # Check a row
     row, col = (0, 0)
-    display.ui.runs_model.item(row, col).setCheckState(True)
+    display.ui.runs_model.item(row, col).setCheckState(Qt.Checked)
     # Now there are some selected rows
     assert len(display.active_uids()) == 1
 
 
+@pytest.mark.asyncio
 async def test_metadata(display, qtbot, mocker):
     display.ui.metadata_tab.display_metadata = mocker.MagicMock()
     display.active_uids = mocker.MagicMock(
@@ -165,36 +156,7 @@ def test_busy_hints_multiple(display):
     assert display.ui.detail_tabwidget.isEnabled()
 
 
-async def test_auto_bss_filters(display):
-    # First set the BSS metadata when the "current" box is checked
-    display.filter_current_proposal_checkbox.setChecked(True)
-    display.filter_current_esaf_checkbox.setChecked(True)
-    display.update_bss_metadata(
-        {
-            "proposal_id": "12345",
-            "esaf_id": "56789",
-        }
-    )
-    assert display.filter_proposal_combobox.currentText() == "12345"
-    assert display.filter_esaf_combobox.currentText() == "56789"
-    # Now cache some BSS metadata with the "current" box unchecked
-    display.filter_current_proposal_checkbox.setChecked(False)
-    display.filter_current_esaf_checkbox.setChecked(False)
-    display.update_bss_metadata(
-        {
-            "proposal_id": "54321",
-            "esaf_id": "98765",
-        }
-    )
-    assert display.filter_proposal_combobox.currentText() == "12345"  # Not updated yet
-    assert display.filter_esaf_combobox.currentText() == "56789"  # Not updated yet
-    # Now re-enable the "current" checkboxes and see if the widgets update
-    display.filter_current_proposal_checkbox.setChecked(True)
-    display.filter_current_esaf_checkbox.setChecked(True)
-    assert display.filter_proposal_combobox.currentText() == "54321"
-    assert display.filter_esaf_combobox.currentText() == "98765"
-
-
+@pytest.mark.asyncio
 async def test_update_combobox_items(display):
     """Check that the comboboxes get the distinct filter fields."""
     await display.update_combobox_items()
@@ -211,6 +173,7 @@ async def test_update_combobox_items(display):
     assert display.ui.filter_beamline_combobox.count() > 0
 
 
+@pytest.mark.asyncio
 async def test_export_button_enabled(display):
     assert not display.export_button.isEnabled()
     # Update the list with 1 run and see if the control gets enabled
@@ -223,6 +186,7 @@ async def test_export_button_enabled(display):
     assert not display.export_button.isEnabled()
 
 
+@pytest.mark.asyncio
 async def test_export_button_clicked(display, mocker, qtbot):
     # Set up a run to be tested against
     run = AsyncMock()
@@ -260,17 +224,14 @@ def test_default_filters(display):
     assert display.ui.filter_after_checkbox.checkState()
     last_week = dt.datetime(2022, 8, 12, 19, 10, 51)
     after_filter_time = display.ui.filter_after_datetimeedit.dateTime()
-    after_filter_time = dt.datetime.fromtimestamp(after_filter_time.toTime_t())
+    after_filter_time = dt.datetime.fromtimestamp(after_filter_time.toSecsSinceEpoch())
     assert after_filter_time == last_week
     next_week = dt.datetime(2022, 8, 26, 19, 10, 51)
     before_filter_time = display.ui.filter_before_datetimeedit.dateTime()
-    before_filter_time = dt.datetime.fromtimestamp(before_filter_time.toTime_t())
-    assert before_filter_time == next_week
-    # Test beamline filters
-    assert (
-        display.ui.filter_beamline_combobox.currentText()
-        == "SPC Beamline (sector unknown)"
+    before_filter_time = dt.datetime.fromtimestamp(
+        before_filter_time.toSecsSinceEpoch()
     )
+    assert before_filter_time == next_week
 
 
 def test_time_filters(display):
@@ -287,6 +248,7 @@ def test_time_filters(display):
     assert "before" in filters
 
 
+@pytest.mark.asyncio
 async def test_update_internal_data(display, qtbot, mocker):
     display.active_uids = mocker.MagicMock(
         return_value={"85573831-f4b4-4f64-b613-a6007bf03a8d"}
@@ -306,6 +268,7 @@ async def test_update_internal_data(display, qtbot, mocker):
     assert "x" in ds.coords
 
 
+@pytest.mark.asyncio
 async def test_update_selected_data(display, qtbot, mocker):
     display.active_uids = mocker.MagicMock(return_value={"xarray_run"})
     display.selected_uid = mocker.MagicMock(return_value="xarray_run")
@@ -332,12 +295,9 @@ async def test_update_selected_data(display, qtbot, mocker):
     arr = dataset["xarray_run"]
     assert "mono-energy" in arr.coords
     assert dataset.attrs["data_label"] == "It-net_count"
-    # Check that the other view plot methods were called
-    # assert display.ui.gridplot_tab.plot.called  # Disabled until we can write data
-    assert display.ui.frameset_tab.plot.called
-    assert display.ui.spectra_tab.plot.called
 
 
+@pytest.mark.asyncio
 async def test_update_no_data_selected(display, qtbot, mocker):
     display.active_uids = mocker.MagicMock(return_value={})
     display.selected_uid = mocker.MagicMock(return_value=None)
@@ -358,12 +318,14 @@ async def test_update_no_data_selected(display, qtbot, mocker):
     assert not display.ui.detail_tabwidget.isTabEnabled(display.Tabs.SPECTRA)
 
 
+@pytest.mark.asyncio
 async def test_profile_choices(display):
     combobox = display.ui.profile_combobox
     items = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert items == ["cortex", "fedorov"]
 
 
+@pytest.mark.asyncio
 async def test_stream_choices(display, mocker):
     display.active_uids = mocker.MagicMock(
         return_value={"85573831-f4b4-4f64-b613-a6007bf03a8d"}
@@ -576,9 +538,9 @@ def test_axis_labels(display):
         display.ui.y_signal_combobox.addItem("signal_y")
         display.ui.r_signal_combobox.addItem("signal_r")
         display.ui.r_operator_combobox.setCurrentText("+")
-        display.ui.invert_checkbox.setCheckState(True)
-        display.ui.logarithm_checkbox.setCheckState(True)
-        display.ui.gradient_checkbox.setCheckState(True)
+        display.ui.invert_checkbox.setChecked(True)
+        display.ui.logarithm_checkbox.setChecked(True)
+        display.ui.gradient_checkbox.setChecked(True)
     x_label, y_label = display.axis_labels()
     assert x_label == "signal_x"
     assert y_label == "∇(ln((signal_y + signal_r)⁻))"

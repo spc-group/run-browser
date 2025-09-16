@@ -1,7 +1,7 @@
 import pytest
 from qtpy.QtWidgets import QPlainTextEdit
 
-from firefly.run_browser.metadata_view import MetadataView
+from run_browser.metadata_view import MetadataView
 
 
 @pytest.fixture()

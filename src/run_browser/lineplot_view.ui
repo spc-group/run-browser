@@ -106,7 +106,7 @@
   <customwidget>
    <class>Browser1DPlotWidget</class>
    <extends>QGraphicsView</extends>
-   <header>firefly.run_browser.lineplot_view</header>
+   <header>run_browser.lineplot_view</header>
   </customwidget>
  </customwidgets>
  <resources/>

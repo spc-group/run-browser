@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from pyqtgraph import GraphicsLayoutWidget
 
-from firefly.run_browser.multiplot_view import MultiplotView
+from run_browser.multiplot_view import MultiplotView
 
 
 @pytest.fixture()

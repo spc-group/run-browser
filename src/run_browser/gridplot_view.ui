@@ -59,7 +59,7 @@ If unchecked, the data will still be presented on a fixed grid, but this grid ma
   <customwidget>
    <class>GridImageView</class>
    <extends>QWidget</extends>
-   <header>firefly.run_browser.gridplot_view</header>
+   <header>run_browser.gridplot_view</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

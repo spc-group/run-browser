@@ -5,6 +5,7 @@ import logging
 from collections import Counter
 from contextlib import contextmanager
 from functools import wraps
+from pathlib import Path
 from typing import Mapping, Optional, Sequence
 
 import httpx
@@ -13,18 +14,16 @@ import pandas as pd
 import qtawesome as qta
 import xarray as xr
 from numpy.typing import NDArray
-from pydm import PyDMChannel
 from qasync import asyncSlot
+from qtpy import uic
 from qtpy.QtCore import QDateTime, Qt
 from qtpy.QtGui import QStandardItem, QStandardItemModel
-from qtpy.QtWidgets import QErrorMessage
+from qtpy.QtWidgets import QErrorMessage, QWidget
 from tiled.client import from_profile_async
 from tiled.profiles import get_default_profile_name, list_profiles
 
-from firefly import display
-from firefly.run_browser.client import DatabaseWorker
-from firefly.run_browser.widgets import ExportDialog
-from haven import load_config
+from run_browser.client import DatabaseWorker
+from run_browser.widgets import ExportDialog
 
 log = logging.getLogger(__name__)
 
@@ -64,7 +63,9 @@ def block_signals(*widgets):
             widget.blockSignals(False)
 
 
-class RunBrowserDisplay(display.FireflyDisplay):
+class RunBrowserDisplay(QWidget):
+    ui_file = Path(__file__).parent / "run_browser.ui"
+
     runs_model: QStandardItemModel
     _run_col_names: Sequence = [
         "✓",
@@ -78,9 +79,6 @@ class RunBrowserDisplay(display.FireflyDisplay):
     ]
 
     _running_db_tasks: Mapping
-
-    proposal_channel: PyDMChannel
-    esaf_channel: PyDMChannel
 
     export_dialog: Optional[ExportDialog] = None
 
@@ -96,13 +94,17 @@ class RunBrowserDisplay(display.FireflyDisplay):
         SPECTRA = 5
         VOLUME = 6
 
-    def __init__(self, args=None, macros=None, **kwargs):
-        super().__init__(args=args, macros=macros, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.load_ui()
         self.selected_runs = []
         self._running_db_tasks = {}
         self._busy_hinters = Counter()
         self.reset_default_filters()
         self.db = DatabaseWorker()
+
+    def show_message(self, message: str, delay: int = None):
+        log.info(message)
 
     def load_profiles(self):
         """Prepare to use a set of databases accessible through *tiled_client*."""
@@ -122,18 +124,6 @@ class RunBrowserDisplay(display.FireflyDisplay):
             asyncio.gather(self.load_runs(), self.update_combobox_items()),
             name="change_catalog",
         )
-
-    def update_bss_metadata(self, md: Mapping[str, str]):
-        super().update_bss_metadata(md)
-        self.update_bss_widgets()
-
-    def update_bss_widgets(self):
-        """Set the ESAF/proposal ID's to last known values from the BSS display."""
-        md = self._bss_metadata
-        if self.filter_current_proposal_checkbox.isChecked() and md.get("proposal_id"):
-            self.filter_proposal_combobox.setCurrentText(md["proposal_id"])
-        if self.filter_current_esaf_checkbox.isChecked() and md.get("esaf_id"):
-            self.filter_esaf_combobox.setCurrentText(md["esaf_id"])
 
     def db_task(self, coro, name="default task"):
         """Executes a co-routine as a database task. Existing database
@@ -169,7 +159,7 @@ class RunBrowserDisplay(display.FireflyDisplay):
             for run in runs:
                 checkbox = QStandardItem(True)
                 checkbox.setCheckable(True)
-                checkbox.setCheckState(False)
+                checkbox.setCheckState(Qt.Unchecked)
                 items = [checkbox]
                 items += [QStandardItem(val) for val in run.values()]
                 self.ui.runs_model.appendRow(items)
@@ -205,19 +195,11 @@ class RunBrowserDisplay(display.FireflyDisplay):
         self.ui.filter_current_proposal_checkbox.setChecked(True)
         self.ui.filter_after_checkbox.setChecked(True)
         last_week = dt.datetime.now().astimezone() - dt.timedelta(days=7)
-        last_week = QDateTime.fromTime_t(int(last_week.timestamp()))
+        last_week = QDateTime.fromSecsSinceEpoch(int(last_week.timestamp()))
         self.ui.filter_after_datetimeedit.setDateTime(last_week)
         next_week = dt.datetime.now().astimezone() + dt.timedelta(days=7)
-        next_week = QDateTime.fromTime_t(int(next_week.timestamp()))
+        next_week = QDateTime.fromSecsSinceEpoch(int(next_week.timestamp()))
         self.ui.filter_before_datetimeedit.setDateTime(next_week)
-        # Set beamline based on config file
-        beamline_id = (
-            load_config()
-            .get("RUN_ENGINE", {})
-            .get("DEFAULT_METADATA", {})
-            .get("beamline", "")
-        )
-        self.ui.filter_beamline_combobox.setCurrentText(beamline_id)
 
     async def update_combobox_items(self):
         """"""
@@ -242,7 +224,8 @@ class RunBrowserDisplay(display.FireflyDisplay):
             cb.addItems(fields)
             cb.setCurrentText(old_value)
 
-    def customize_ui(self):
+    def load_ui(self):
+        self.ui = uic.loadUi(self.ui_file, self)
         # self.ui.run_details_layout.setEnabled(False)
         self.load_models()
         self.load_profiles()
@@ -272,12 +255,6 @@ class RunBrowserDisplay(display.FireflyDisplay):
         self.ui.profile_combobox.currentTextChanged.connect(self.change_catalog)
         # Respond to filter controls getting updated
         self.ui.filters_widget.returnPressed.connect(self.refresh_runs_button.click)
-        self.filter_current_proposal_checkbox.stateChanged.connect(
-            self.update_bss_widgets,
-        )
-        self.filter_current_esaf_checkbox.stateChanged.connect(
-            self.update_bss_widgets,
-        )
         # Respond to controls for the current run
         self.ui.reload_plots_button.clicked.connect(self.update_all_views)
         self.ui.stream_combobox.currentTextChanged.connect(self.update_signal_widgets)
@@ -524,11 +501,11 @@ class RunBrowserDisplay(display.FireflyDisplay):
         roperator = self.ui.r_operator_combobox.currentText()
         if roperator != "":
             ylabel = f"{ylabel} {roperator} {rlabel}"
-        if self.ui.invert_checkbox.checkState():
+        if self.ui.invert_checkbox.isChecked():
             ylabel = f"({ylabel})⁻"
-        if self.ui.logarithm_checkbox.checkState():
+        if self.ui.logarithm_checkbox.isChecked():
             ylabel = f"ln({ylabel})"
-        if self.ui.gradient_checkbox.checkState():
+        if self.ui.gradient_checkbox.isChecked():
             ylabel = f"∇({ylabel})"
         return xlabel, ylabel
 
@@ -756,13 +733,16 @@ class RunBrowserDisplay(display.FireflyDisplay):
                 run_widgets=True, run_table=False, filter_widgets=False
             ):
                 datasets = await self.db_task(
-                    self.db.datasets(uids, stream, xcolumn=xsig, ycolumn=ysig, rcolumn=rsig),
-                    "update_datasets"
+                    self.db.datasets(
+                        uids, stream, xcolumn=xsig, ycolumn=ysig, rcolumn=rsig
+                    ),
+                    "update_datasets",
                 )
                 # datasets = await self.db.datasets(
                 #     uids, stream, xcolumn=xsig, ycolumn=ysig, rcolumn=rsig
                 # )
         # 1D line plots
+        print(len(datasets))
         if len(datasets) > 0:
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.LINE, True)
             line_data = self.prepare_1d_dataset(datasets)
@@ -821,8 +801,9 @@ class RunBrowserDisplay(display.FireflyDisplay):
         uids = [
             model.item(row_idx, uid_col).text()
             for row_idx in range(self.runs_model.rowCount())
-            if model.item(row_idx, cbox_col).checkState()
+            if model.item(row_idx, cbox_col).checkState() == Qt.Checked
         ]
+        print(uids)
         return set(uids)
 
     def filters(self, *args):
@@ -840,14 +821,14 @@ class RunBrowserDisplay(display.FireflyDisplay):
             "full_text": self.ui.filter_full_text_lineedit.text(),
         }
         # Special handling for the time-based filters
-        if self.ui.filter_after_checkbox.checkState():
+        if self.ui.filter_after_checkbox.isChecked():
             after = self.ui.filter_after_datetimeedit.dateTime().toSecsSinceEpoch()
             new_filters["after"] = after
-        if self.ui.filter_before_checkbox.checkState():
+        if self.ui.filter_before_checkbox.isChecked():
             before = self.ui.filter_before_datetimeedit.dateTime().toSecsSinceEpoch()
             new_filters["before"] = before
         # Limit the search to standards only
-        if self.ui.filter_standards_checkbox.checkState():
+        if self.ui.filter_standards_checkbox.isChecked():
             new_filters["standards_only"] = True
         # Only include values that were actually filled in
         null_values = ["", False]
@@ -864,6 +845,3 @@ class RunBrowserDisplay(display.FireflyDisplay):
         self.runs_model.dataChanged.connect(self.print_data)
         # Add the model to the UI element
         self.ui.run_tableview.setModel(self.runs_model)
-
-    def ui_filename(self):
-        return "run_browser/run_browser.ui"

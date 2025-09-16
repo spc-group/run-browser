@@ -1,0 +1,48 @@
+[project]
+name = "run-browser"
+version = "0.0.0"
+authors = [
+  { name="Mark Wolfman", email="wolfman@anl.gov" },
+]
+description = "run-browser"
+readme = "README.rst"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Topic :: Scientific/Engineering",
+]
+keywords = []
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["black", "pytest", "ruff", "isort", "mypy"]
+
+[project.urls]
+Homepage = "https://github.com/spc-group/run-browser"
+
+[project.scripts]
+# command = "run_browser.__main__:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[build-system]
+build-backend = "hatchling.build"
+requires = ["hatchling"]
+
+[tool.isort]
+profile = "black"
+
+[tool.mypy]
+files = ["src/"]
+follow_imports = "skip"
+follow_untyped_imports = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.ruff.lint]
+select = ["E9", "F63", "F7", "F82", "F401"]

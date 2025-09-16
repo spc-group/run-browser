@@ -11,11 +11,11 @@ import xarray as xr
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QFileDialog
 
-from run_browser.display import RunBrowserDisplay, block_signals
+from run_browser.main_window import RunBrowserMainWindow, block_signals
 
 
 @pytest_asyncio.fixture()
-async def display(qtbot, mocker, tiled_client):
+async def window(qtbot, mocker, tiled_client):
     mocker.patch(
         "run_browser.widgets.ExportDialog.exec_",
         return_value=QFileDialog.Accepted,
@@ -26,44 +26,46 @@ async def display(qtbot, mocker, tiled_client):
     )
     mocker.patch("run_browser.client.DatabaseWorker.export_runs")
     mocker.patch(
-        "run_browser.display.list_profiles",
+        "run_browser.main_window.list_profiles",
         return_value={
             "cortex": Path("/tmp/cortex"),
             "fedorov": Path("/tmp/fedorov"),
         },
     )
-    mocker.patch("run_browser.display.get_default_profile_name", return_value="cortex")
-    display = RunBrowserDisplay()
-    qtbot.addWidget(display)
-    display.clear_filters()
+    mocker.patch(
+        "run_browser.main_window.get_default_profile_name", return_value="cortex"
+    )
+    window = RunBrowserMainWindow()
+    qtbot.addWidget(window)
+    window.clear_filters()
     # Wait for the initial database load to process
-    display.db.catalog = tiled_client
+    window.db.catalog = tiled_client
     try:
-        yield display
+        yield window
     finally:
         # Make sure all the db tasks have a chance to finish cleanly
-        [task.cancel() for task in display._running_db_tasks.values()]
+        [task.cancel() for task in window._running_db_tasks.values()]
 
 
 @pytest.mark.asyncio
-async def test_db_task(display):
+async def test_db_task(window):
     async def test_coro():
         return 15
 
-    result = await display.db_task(test_coro())
+    result = await window.db_task(test_coro())
     assert result == 15
 
 
 @pytest.mark.asyncio
-async def test_db_task_interruption(display):
+async def test_db_task_interruption(window):
     async def test_coro(sleep_time):
         await asyncio.sleep(sleep_time)
         return sleep_time
 
     # Create an existing task that will be cancelled
-    task_1 = display.db_task(test_coro(1.0), name="testing")
+    task_1 = window.db_task(test_coro(1.0), name="testing")
     # Now execute another task
-    result = await display.db_task(test_coro(0.01), name="testing")
+    result = await window.db_task(test_coro(0.01), name="testing")
     assert result == 0.01
     # Check that the first one was cancelled
     with pytest.raises(asyncio.exceptions.CancelledError):
@@ -73,121 +75,121 @@ async def test_db_task_interruption(display):
 
 
 @pytest.mark.asyncio
-async def test_load_runs(display):
-    await display.load_runs()
-    assert display.runs_model.rowCount() > 0
-    assert display.ui.runs_total_label.text() == str(display.runs_model.rowCount())
+async def test_load_runs(window):
+    await window.load_runs()
+    assert window.runs_model.rowCount() > 0
+    assert window.ui.runs_total_label.text() == str(window.runs_model.rowCount())
 
 
 @pytest.mark.asyncio
-async def test_active_uids(display):
-    await display.load_runs()
+async def test_active_uids(window):
+    await window.load_runs()
     # No rows at first
-    assert display.active_uids() == set()
+    assert window.active_uids() == set()
     # Check a row
     row, col = (0, 0)
-    display.ui.runs_model.item(row, col).setCheckState(Qt.Checked)
+    window.ui.runs_model.item(row, col).setCheckState(Qt.Checked)
     # Now there are some selected rows
-    assert len(display.active_uids()) == 1
+    assert len(window.active_uids()) == 1
 
 
 @pytest.mark.asyncio
-async def test_metadata(display, qtbot, mocker):
-    display.ui.metadata_tab.display_metadata = mocker.MagicMock()
-    display.active_uids = mocker.MagicMock(
+async def test_metadata(window, qtbot, mocker):
+    window.ui.metadata_tab.display_metadata = mocker.MagicMock()
+    window.active_uids = mocker.MagicMock(
         return_value={"85573831-f4b4-4f64-b613-a6007bf03a8d"}
     )
-    new_md = await display.update_metadata()
+    new_md = await window.update_metadata()
     assert "85573831-f4b4-4f64-b613-a6007bf03a8d" in new_md
-    assert display.ui.metadata_tab.display_metadata.called
+    assert window.ui.metadata_tab.display_metadata.called
 
 
-def test_busy_hints_run_widgets(display):
-    """Check that the display widgets get disabled during DB hits."""
-    with display.busy_hints(run_widgets=True, run_table=False):
+def test_busy_hints_run_widgets(window):
+    """Check that the window widgets get disabled during DB hits."""
+    with window.busy_hints(run_widgets=True, run_table=False):
         # Are widgets disabled in the context block?
-        assert not display.ui.detail_tabwidget.isEnabled()
+        assert not window.ui.detail_tabwidget.isEnabled()
     # Are widgets re-enabled outside the context block?
-    assert display.ui.detail_tabwidget.isEnabled()
+    assert window.ui.detail_tabwidget.isEnabled()
 
 
-def test_busy_hints_run_table(display):
+def test_busy_hints_run_table(window):
     """Check that the all_runs table view gets disabled during DB hits."""
-    with display.busy_hints(run_table=True, run_widgets=False):
+    with window.busy_hints(run_table=True, run_widgets=False):
         # Are widgets disabled in the context block?
-        assert not display.ui.run_tableview.isEnabled()
+        assert not window.ui.run_tableview.isEnabled()
     # Are widgets re-enabled outside the context block?
-    assert display.ui.run_tableview.isEnabled()
+    assert window.ui.run_tableview.isEnabled()
 
 
-def test_busy_hints_filters(display):
+def test_busy_hints_filters(window):
     """Check that the all_runs table view gets disabled during DB hits."""
-    with display.busy_hints(run_table=False, run_widgets=False, filter_widgets=True):
+    with window.busy_hints(run_table=False, run_widgets=False, filter_widgets=True):
         # Are widgets disabled in the context block?
-        assert not display.ui.filters_widget.isEnabled()
+        assert not window.ui.filters_widget.isEnabled()
     # Are widgets re-enabled outside the context block?
-    assert display.ui.filters_widget.isEnabled()
+    assert window.ui.filters_widget.isEnabled()
 
 
-def test_busy_hints_status(display, mocker):
+def test_busy_hints_status(window, mocker):
     """Check that any busy_hints displays the message "Loading…"."""
-    spy = mocker.spy(display, "show_message")
-    with display.busy_hints(run_table=True, run_widgets=False):
+    spy = mocker.spy(window, "show_message")
+    with window.busy_hints(run_table=True, run_widgets=False):
         # Are widgets disabled in the context block?
-        assert not display.ui.run_tableview.isEnabled()
+        assert not window.ui.run_tableview.isEnabled()
         assert spy.call_count == 1
     # Are widgets re-enabled outside the context block?
     assert spy.call_count == 2
-    assert display.ui.run_tableview.isEnabled()
+    assert window.ui.run_tableview.isEnabled()
 
 
-def test_busy_hints_multiple(display):
+def test_busy_hints_multiple(window):
     """Check that multiple busy hints can co-exist."""
     # Next the busy_hints context to mimic multiple async calls
-    with display.busy_hints(run_widgets=True):
+    with window.busy_hints(run_widgets=True):
         # Are widgets disabled in the outer block?
-        assert not display.ui.detail_tabwidget.isEnabled()
-        with display.busy_hints(run_widgets=True):
+        assert not window.ui.detail_tabwidget.isEnabled()
+        with window.busy_hints(run_widgets=True):
             # Are widgets disabled in the inner block?
-            assert not display.ui.detail_tabwidget.isEnabled()
+            assert not window.ui.detail_tabwidget.isEnabled()
         # Are widgets still disabled in the outer block?
-        assert not display.ui.detail_tabwidget.isEnabled()
+        assert not window.ui.detail_tabwidget.isEnabled()
     # Are widgets re-enabled outside the context block?
-    assert display.ui.detail_tabwidget.isEnabled()
+    assert window.ui.detail_tabwidget.isEnabled()
 
 
 @pytest.mark.asyncio
-async def test_update_combobox_items(display):
+async def test_update_combobox_items(window):
     """Check that the comboboxes get the distinct filter fields."""
-    await display.update_combobox_items()
+    await window.update_combobox_items()
     # Some of these have filters are disabled because they are slow
     # with sqlite They may be re-enabled when switching to postgres
-    assert display.ui.filter_plan_combobox.count() > 0
-    assert display.ui.filter_sample_combobox.count() > 0
-    assert display.ui.filter_formula_combobox.count() > 0
-    assert display.ui.filter_scan_combobox.count() > 0
-    assert display.ui.filter_edge_combobox.count() > 0
-    assert display.ui.filter_exit_status_combobox.count() > 0
-    assert display.ui.filter_proposal_combobox.count() > 0
-    assert display.ui.filter_esaf_combobox.count() > 0
-    assert display.ui.filter_beamline_combobox.count() > 0
+    assert window.ui.filter_plan_combobox.count() > 0
+    assert window.ui.filter_sample_combobox.count() > 0
+    assert window.ui.filter_formula_combobox.count() > 0
+    assert window.ui.filter_scan_combobox.count() > 0
+    assert window.ui.filter_edge_combobox.count() > 0
+    assert window.ui.filter_exit_status_combobox.count() > 0
+    assert window.ui.filter_proposal_combobox.count() > 0
+    assert window.ui.filter_esaf_combobox.count() > 0
+    assert window.ui.filter_beamline_combobox.count() > 0
 
 
 @pytest.mark.asyncio
-async def test_export_button_enabled(display):
-    assert not display.export_button.isEnabled()
+async def test_export_button_enabled(window):
+    assert not window.export_button.isEnabled()
     # Update the list with 1 run and see if the control gets enabled
-    display.selected_runs = [{}]
-    display.update_export_button()
-    assert display.export_button.isEnabled()
+    window.selected_runs = [{}]
+    window.update_export_button()
+    assert window.export_button.isEnabled()
     # Update the list with multiple runs and see if the control gets disabled
-    display.selected_runs = [{}, {}]
-    display.update_export_button()
-    assert not display.export_button.isEnabled()
+    window.selected_runs = [{}, {}]
+    window.update_export_button()
+    assert not window.export_button.isEnabled()
 
 
 @pytest.mark.asyncio
-async def test_export_button_clicked(display, mocker, qtbot):
+async def test_export_button_clicked(window, mocker, qtbot):
     # Set up a run to be tested against
     run = AsyncMock()
     run.formats.return_value = [
@@ -195,72 +197,72 @@ async def test_export_button_clicked(display, mocker, qtbot):
         "application/x-hdf5",
         "application/x-nexus",
     ]
-    display.selected_runs = [run]
-    display.update_export_button()
+    window.selected_runs = [run]
+    window.update_export_button()
     # Clicking the button should open a file dialog
-    await display.export_runs()
-    assert display.export_dialog.exec_.called
-    assert display.export_dialog.selectedFiles.called
+    await window.export_runs()
+    assert window.export_dialog.exec_.called
+    assert window.export_dialog.selectedFiles.called
     # Check that file filter names are set correctly
     # (assumes application/json is available on every machine)
-    assert "JSON document (*.json)" in display.export_dialog.nameFilters()
+    assert "JSON document (*.json)" in window.export_dialog.nameFilters()
     # Check that the file was saved
-    assert display.db.export_runs.called
-    files = display.export_dialog.selectedFiles.return_value
-    assert display.db.export_runs.call_args.args == (files,)
-    assert display.db.export_runs.call_args.kwargs["formats"] == ["application/json"]
+    assert window.db.export_runs.called
+    files = window.export_dialog.selectedFiles.return_value
+    assert window.db.export_runs.call_args.args == (files,)
+    assert window.db.export_runs.call_args.kwargs["formats"] == ["application/json"]
 
 
 fake_time = dt.datetime(2022, 8, 19, 19, 10, 51).astimezone()
 
 
 @time_machine.travel(fake_time, tick=False)
-def test_default_filters(display):
-    display.reset_default_filters()
-    assert display.ui.filter_exit_status_combobox.currentText() == "success"
-    assert display.ui.filter_current_esaf_checkbox.checkState()
-    assert display.ui.filter_current_proposal_checkbox.checkState()
+def test_default_filters(window):
+    window.reset_default_filters()
+    assert window.ui.filter_exit_status_combobox.currentText() == "success"
+    assert window.ui.filter_current_esaf_checkbox.checkState()
+    assert window.ui.filter_current_proposal_checkbox.checkState()
     # Test datetime filters
-    assert display.ui.filter_after_checkbox.checkState()
+    assert window.ui.filter_after_checkbox.checkState()
     last_week = dt.datetime(2022, 8, 12, 19, 10, 51)
-    after_filter_time = display.ui.filter_after_datetimeedit.dateTime()
+    after_filter_time = window.ui.filter_after_datetimeedit.dateTime()
     after_filter_time = dt.datetime.fromtimestamp(after_filter_time.toSecsSinceEpoch())
     assert after_filter_time == last_week
     next_week = dt.datetime(2022, 8, 26, 19, 10, 51)
-    before_filter_time = display.ui.filter_before_datetimeedit.dateTime()
+    before_filter_time = window.ui.filter_before_datetimeedit.dateTime()
     before_filter_time = dt.datetime.fromtimestamp(
         before_filter_time.toSecsSinceEpoch()
     )
     assert before_filter_time == next_week
 
 
-def test_time_filters(display):
+def test_time_filters(window):
     """Check that the before and after datetime filters are activated."""
-    display.ui.filter_after_checkbox.setChecked(False)
-    display.ui.filter_before_checkbox.setChecked(False)
-    filters = display.filters()
+    window.ui.filter_after_checkbox.setChecked(False)
+    window.ui.filter_before_checkbox.setChecked(False)
+    filters = window.filters()
     assert "after" not in filters
     assert "before" not in filters
-    display.ui.filter_after_checkbox.setChecked(True)
-    display.ui.filter_before_checkbox.setChecked(True)
-    filters = display.filters()
+    window.ui.filter_after_checkbox.setChecked(True)
+    window.ui.filter_before_checkbox.setChecked(True)
+    filters = window.filters()
     assert "after" in filters
     assert "before" in filters
 
 
 @pytest.mark.asyncio
-async def test_update_internal_data(display, qtbot, mocker):
-    display.active_uids = mocker.MagicMock(
+async def test_update_internal_data(window, qtbot, mocker):
+    window.active_uids = mocker.MagicMock(
         return_value={"85573831-f4b4-4f64-b613-a6007bf03a8d"}
     )
-    with block_signals(display.ui.stream_combobox, display.ui.x_signal_combobox):
-        display.ui.stream_combobox.addItem("primary")
-        display.ui.x_signal_combobox.addItem("x")
-    display.ui.multiplot_tab.plot = mocker.MagicMock()
-    await display.update_internal_data()
+    with block_signals(window.ui.stream_combobox, window.ui.x_signal_combobox):
+        window.ui.stream_combobox.addItem("primary")
+        window.ui.x_signal_combobox.addItem("x")
+    window.ui.multiplot_tab.plot = mocker.MagicMock()
+    await window.update_internal_data()
     # Check that the plotting routines were called correctly
-    assert display.ui.multiplot_tab.plot.called
-    args, kwargs = display.ui.multiplot_tab.plot.call_args
+    assert window.ui.multiplot_tab.plot.called
+    args, kwargs = window.ui.multiplot_tab.plot.call_args
     datasets = args[0]
     assert len(datasets) == 1
     ds = datasets[0]
@@ -269,27 +271,27 @@ async def test_update_internal_data(display, qtbot, mocker):
 
 
 @pytest.mark.asyncio
-async def test_update_selected_data(display, qtbot, mocker):
-    display.active_uids = mocker.MagicMock(return_value={"xarray_run"})
-    display.selected_uid = mocker.MagicMock(return_value="xarray_run")
+async def test_update_selected_data(window, qtbot, mocker):
+    window.active_uids = mocker.MagicMock(return_value={"xarray_run"})
+    window.selected_uid = mocker.MagicMock(return_value="xarray_run")
     with block_signals(
-        display.ui.stream_combobox,
-        display.ui.x_signal_combobox,
-        display.ui.y_signal_combobox,
-        display.ui.r_signal_combobox,
+        window.ui.stream_combobox,
+        window.ui.x_signal_combobox,
+        window.ui.y_signal_combobox,
+        window.ui.r_signal_combobox,
     ):
-        display.ui.stream_combobox.addItem("primary")
-        display.ui.x_signal_combobox.addItem("mono-energy")
-        display.ui.y_signal_combobox.addItem("It-net_count")
-        display.ui.r_signal_combobox.addItem("I0-net_count")
+        window.ui.stream_combobox.addItem("primary")
+        window.ui.x_signal_combobox.addItem("mono-energy")
+        window.ui.y_signal_combobox.addItem("It-net_count")
+        window.ui.r_signal_combobox.addItem("I0-net_count")
     # Check that the clients got called
-    display.ui.lineplot_tab.plot = mocker.MagicMock()
-    display.ui.gridplot_tab.plot = mocker.MagicMock()
-    display.ui.frameset_tab.plot = mocker.MagicMock()
-    display.ui.spectra_tab.plot = mocker.MagicMock()
-    await display.update_selected_data()
-    assert display.ui.lineplot_tab.plot.called
-    args, kwargs = display.ui.lineplot_tab.plot.call_args
+    window.ui.lineplot_tab.plot = mocker.MagicMock()
+    window.ui.gridplot_tab.plot = mocker.MagicMock()
+    window.ui.frameset_tab.plot = mocker.MagicMock()
+    window.ui.spectra_tab.plot = mocker.MagicMock()
+    await window.update_selected_data()
+    assert window.ui.lineplot_tab.plot.called
+    args, kwargs = window.ui.lineplot_tab.plot.call_args
     dataset = args[0]
     assert isinstance(dataset, xr.Dataset)
     arr = dataset["xarray_run"]
@@ -298,46 +300,46 @@ async def test_update_selected_data(display, qtbot, mocker):
 
 
 @pytest.mark.asyncio
-async def test_update_no_data_selected(display, qtbot, mocker):
-    display.active_uids = mocker.MagicMock(return_value={})
-    display.selected_uid = mocker.MagicMock(return_value=None)
+async def test_update_no_data_selected(window, qtbot, mocker):
+    window.active_uids = mocker.MagicMock(return_value={})
+    window.selected_uid = mocker.MagicMock(return_value=None)
     # Check that the clients got called
-    display.ui.lineplot_tab.plot = mocker.MagicMock()
-    display.ui.gridplot_tab.plot = mocker.MagicMock()
-    display.ui.frameset_tab.plot = mocker.MagicMock()
-    display.ui.spectra_tab.plot = mocker.MagicMock()
-    await display.update_selected_data()
+    window.ui.lineplot_tab.plot = mocker.MagicMock()
+    window.ui.gridplot_tab.plot = mocker.MagicMock()
+    window.ui.frameset_tab.plot = mocker.MagicMock()
+    window.ui.spectra_tab.plot = mocker.MagicMock()
+    await window.update_selected_data()
     # All the tab views should be disabled
-    assert not display.ui.lineplot_tab.plot.called
-    assert not display.ui.detail_tabwidget.isTabEnabled(display.Tabs.LINE)
-    assert not display.ui.gridplot_tab.plot.called
-    assert not display.ui.detail_tabwidget.isTabEnabled(display.Tabs.GRID)
-    assert not display.ui.frameset_tab.plot.called
-    assert not display.ui.detail_tabwidget.isTabEnabled(display.Tabs.FRAMES)
-    assert not display.ui.spectra_tab.plot.called
-    assert not display.ui.detail_tabwidget.isTabEnabled(display.Tabs.SPECTRA)
+    assert not window.ui.lineplot_tab.plot.called
+    assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.LINE)
+    assert not window.ui.gridplot_tab.plot.called
+    assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.GRID)
+    assert not window.ui.frameset_tab.plot.called
+    assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.FRAMES)
+    assert not window.ui.spectra_tab.plot.called
+    assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.SPECTRA)
 
 
 @pytest.mark.asyncio
-async def test_profile_choices(display):
-    combobox = display.ui.profile_combobox
+async def test_profile_choices(window):
+    combobox = window.ui.profile_combobox
     items = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert items == ["cortex", "fedorov"]
 
 
 @pytest.mark.asyncio
-async def test_stream_choices(display, mocker):
-    display.active_uids = mocker.MagicMock(
+async def test_stream_choices(window, mocker):
+    window.active_uids = mocker.MagicMock(
         return_value={"85573831-f4b4-4f64-b613-a6007bf03a8d"}
     )
-    await display.update_streams()
-    combobox = display.ui.stream_combobox
+    await window.update_streams()
+    combobox = window.ui.stream_combobox
     items = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert items == ["primary", "baseline"]
 
 
 @pytest.mark.asyncio
-async def test_signal_options(display, mocker):
+async def test_signal_options(window, mocker):
     """
     We need to know:
     - data_keys
@@ -348,15 +350,15 @@ async def test_signal_options(display, mocker):
     haven-dev catalog.
 
     """
-    display.active_uids = mocker.MagicMock(
+    window.active_uids = mocker.MagicMock(
         return_value={"85573831-f4b4-4f64-b613-a6007bf03a8d"}
     )
-    with block_signals(display.ui.stream_combobox, display.ui.use_hints_checkbox):
-        await display.update_streams()
-        display.ui.stream_combobox.setCurrentText("primary")
-        display.ui.use_hints_checkbox.setChecked(False)
+    with block_signals(window.ui.stream_combobox, window.ui.use_hints_checkbox):
+        await window.update_streams()
+        window.ui.stream_combobox.setCurrentText("primary")
+        window.ui.use_hints_checkbox.setChecked(False)
     # Check that we got the right signals in the right order
-    await display.update_signal_widgets()
+    await window.update_signal_widgets()
     expected_signals = [
         "energy_energy",
         "ge_8element",
@@ -364,19 +366,19 @@ async def test_signal_options(display, mocker):
         "I0-net_count",
         "seq_num",
     ]
-    combobox = display.ui.x_signal_combobox
+    combobox = window.ui.x_signal_combobox
     signals = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert signals == expected_signals
-    combobox = display.ui.y_signal_combobox
+    combobox = window.ui.y_signal_combobox
     signals = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert signals == expected_signals
-    combobox = display.ui.r_signal_combobox
+    combobox = window.ui.r_signal_combobox
     signals = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert signals == expected_signals
 
 
 @pytest.mark.asyncio
-async def test_hinted_signal_options(display, mocker):
+async def test_hinted_signal_options(window, mocker):
     """
     We need to know:
     - data_keys
@@ -387,15 +389,15 @@ async def test_hinted_signal_options(display, mocker):
     haven-dev catalog.
 
     """
-    display.active_uids = mocker.MagicMock(
+    window.active_uids = mocker.MagicMock(
         return_value={"85573831-f4b4-4f64-b613-a6007bf03a8d"}
     )
-    with block_signals(display.ui.stream_combobox, display.ui.use_hints_checkbox):
-        display.ui.stream_combobox.addItem("primary")
-        display.ui.use_hints_checkbox.setChecked(True)
-    await display.update_signal_widgets()
+    with block_signals(window.ui.stream_combobox, window.ui.use_hints_checkbox):
+        window.ui.stream_combobox.addItem("primary")
+        window.ui.use_hints_checkbox.setChecked(True)
+    await window.update_signal_widgets()
     # Check hinted X signals
-    combobox = display.ui.x_signal_combobox
+    combobox = window.ui.x_signal_combobox
     signals = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert signals == ["aerotech_horiz", "aerotech_vert"]
     # Check hinted Y signals
@@ -410,11 +412,11 @@ async def test_hinted_signal_options(display, mocker):
         "Ipreslit_net_counts",
         "It_net_counts",
     ]
-    combobox = display.ui.y_signal_combobox
+    combobox = window.ui.y_signal_combobox
     signals = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert signals == expected_signals
     # Check hinted reference signals
-    combobox = display.ui.r_signal_combobox
+    combobox = window.ui.r_signal_combobox
     signals = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert signals == expected_signals
 
@@ -427,16 +429,16 @@ data_reductions = [
 
 
 @pytest.mark.parametrize("arr,expected", data_reductions)
-def test_reduce_nd_array(display, arr, expected):
-    np.testing.assert_array_equal(display.reduce_nd_array(arr), expected)
+def test_reduce_nd_array(window, arr, expected):
+    np.testing.assert_array_equal(window.reduce_nd_array(arr), expected)
 
 
-def test_prepare_1d_data(display):
-    with block_signals(display.ui.x_signal_combobox, display.ui.y_signal_combobox):
-        display.ui.x_signal_combobox.addItem("mono-energy")
-        display.ui.y_signal_combobox.addItem("It-net_count")
-        display.ui.r_signal_combobox.addItem("I0-net_count")
-        display.ui.r_operator_combobox.setCurrentText("÷")
+def test_prepare_1d_data(window):
+    with block_signals(window.ui.x_signal_combobox, window.ui.y_signal_combobox):
+        window.ui.x_signal_combobox.addItem("mono-energy")
+        window.ui.y_signal_combobox.addItem("It-net_count")
+        window.ui.r_signal_combobox.addItem("I0-net_count")
+        window.ui.r_operator_combobox.setCurrentText("÷")
     dataset = {
         "run1": xr.Dataset(
             {
@@ -446,7 +448,7 @@ def test_prepare_1d_data(display):
             }
         ),
     }
-    new_data = display.prepare_1d_dataset(dataset)
+    new_data = window.prepare_1d_dataset(dataset)
     expected = xr.Dataset(
         {
             "run1": xr.DataArray(
@@ -460,10 +462,10 @@ def test_prepare_1d_data(display):
     assert new_data.attrs["coord_label"] == "mono-energy"
 
 
-def test_prepare_grid_data(display):
-    with block_signals(display.ui.x_signal_combobox, display.ui.y_signal_combobox):
-        display.ui.x_signal_combobox.addItem("mono-energy")
-        display.ui.y_signal_combobox.addItem("I0-net_count")
+def test_prepare_grid_data(window):
+    with block_signals(window.ui.x_signal_combobox, window.ui.y_signal_combobox):
+        window.ui.x_signal_combobox.addItem("mono-energy")
+        window.ui.y_signal_combobox.addItem("I0-net_count")
     grid_shape = (15, 11)
     yy, xx = np.mgrid[:15, :11]
     data = xr.Dataset(
@@ -474,7 +476,7 @@ def test_prepare_grid_data(display):
         },
     )
     # Create the new dataset
-    new_data = display.prepare_grid_dataset(
+    new_data = window.prepare_grid_dataset(
         data,
         grid_shape=grid_shape,
         extent=[],
@@ -491,10 +493,10 @@ def test_prepare_grid_data(display):
     assert new_data.equals(expected)
 
 
-def test_prepare_volume_data(display):
-    with block_signals(display.ui.x_signal_combobox, display.ui.y_signal_combobox):
-        display.ui.x_signal_combobox.addItem("mono-energy")
-        display.ui.y_signal_combobox.addItem("vortex")
+def test_prepare_volume_data(window):
+    with block_signals(window.ui.x_signal_combobox, window.ui.y_signal_combobox):
+        window.ui.x_signal_combobox.addItem("mono-energy")
+        window.ui.y_signal_combobox.addItem("vortex")
     shape = (16, 8, 4)
     data = xr.Dataset(
         {
@@ -505,7 +507,7 @@ def test_prepare_volume_data(display):
         },
     )
     # Create the new dataset
-    new_data = display.prepare_volume_dataset(data)
+    new_data = window.prepare_volume_dataset(data)
     # Verify the new dataset
     expected = xr.DataArray(
         data.vortex.values,
@@ -524,39 +526,39 @@ def test_label_from_metadata():
     assert False
 
 
-def test_axis_labels(display):
+def test_axis_labels(window):
     with block_signals(
-        display.ui.x_signal_combobox,
-        display.ui.y_signal_combobox,
-        display.ui.r_operator_combobox,
-        display.ui.r_signal_combobox,
-        display.ui.invert_checkbox,
-        display.ui.logarithm_checkbox,
-        display.ui.gradient_checkbox,
+        window.ui.x_signal_combobox,
+        window.ui.y_signal_combobox,
+        window.ui.r_operator_combobox,
+        window.ui.r_signal_combobox,
+        window.ui.invert_checkbox,
+        window.ui.logarithm_checkbox,
+        window.ui.gradient_checkbox,
     ):
-        display.ui.x_signal_combobox.addItem("signal_x")
-        display.ui.y_signal_combobox.addItem("signal_y")
-        display.ui.r_signal_combobox.addItem("signal_r")
-        display.ui.r_operator_combobox.setCurrentText("+")
-        display.ui.invert_checkbox.setChecked(True)
-        display.ui.logarithm_checkbox.setChecked(True)
-        display.ui.gradient_checkbox.setChecked(True)
-    x_label, y_label = display.axis_labels()
+        window.ui.x_signal_combobox.addItem("signal_x")
+        window.ui.y_signal_combobox.addItem("signal_y")
+        window.ui.r_signal_combobox.addItem("signal_r")
+        window.ui.r_operator_combobox.setCurrentText("+")
+        window.ui.invert_checkbox.setChecked(True)
+        window.ui.logarithm_checkbox.setChecked(True)
+        window.ui.gradient_checkbox.setChecked(True)
+    x_label, y_label = window.axis_labels()
     assert x_label == "signal_x"
     assert y_label == "∇(ln((signal_y + signal_r)⁻))"
 
 
-def test_swap_signals(display):
+def test_swap_signals(window):
     signal_names = ["It-net_current", "I0-net_current"]
-    with block_signals(display.ui.y_signal_combobox, display.ui.r_signal_combobox):
-        display.ui.y_signal_combobox.addItems(signal_names)
-        display.ui.y_signal_combobox.setCurrentText(signal_names[0])
-        display.ui.r_signal_combobox.addItems(signal_names)
-        display.ui.r_signal_combobox.setCurrentText(signal_names[1])
-        display.swap_signals()
+    with block_signals(window.ui.y_signal_combobox, window.ui.r_signal_combobox):
+        window.ui.y_signal_combobox.addItems(signal_names)
+        window.ui.y_signal_combobox.setCurrentText(signal_names[0])
+        window.ui.r_signal_combobox.addItems(signal_names)
+        window.ui.r_signal_combobox.setCurrentText(signal_names[1])
+        window.swap_signals()
     # Make sure the signals were actually swapped
-    assert display.ui.y_signal_combobox.currentText() == signal_names[1]
-    assert display.ui.r_signal_combobox.currentText() == signal_names[0]
+    assert window.ui.y_signal_combobox.currentText() == signal_names[1]
+    assert window.ui.r_signal_combobox.currentText() == signal_names[0]
 
 
 @pytest.mark.xfail

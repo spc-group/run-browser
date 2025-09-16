@@ -17,8 +17,8 @@ from numpy.typing import NDArray
 from qasync import asyncSlot
 from qtpy import uic
 from qtpy.QtCore import QDateTime, Qt
-from qtpy.QtGui import QStandardItem, QStandardItemModel
-from qtpy.QtWidgets import QErrorMessage, QWidget
+from qtpy.QtGui import QIcon, QStandardItem, QStandardItemModel
+from qtpy.QtWidgets import QApplication, QErrorMessage, QMainWindow
 from tiled.client import from_profile_async
 from tiled.profiles import get_default_profile_name, list_profiles
 
@@ -63,8 +63,8 @@ def block_signals(*widgets):
             widget.blockSignals(False)
 
 
-class RunBrowserDisplay(QWidget):
-    ui_file = Path(__file__).parent / "run_browser.ui"
+class RunBrowserMainWindow(QMainWindow):
+    ui_file = Path(__file__).parent / "main_window.ui"
 
     runs_model: QStandardItemModel
     _run_col_names: Sequence = [
@@ -124,6 +124,7 @@ class RunBrowserDisplay(QWidget):
             asyncio.gather(self.load_runs(), self.update_combobox_items()),
             name="change_catalog",
         )
+        print("END OF CHANGE CATALOG")
 
     def db_task(self, coro, name="default task"):
         """Executes a co-routine as a database task. Existing database
@@ -226,9 +227,12 @@ class RunBrowserDisplay(QWidget):
 
     def load_ui(self):
         self.ui = uic.loadUi(self.ui_file, self)
-        # self.ui.run_details_layout.setEnabled(False)
         self.load_models()
         self.load_profiles()
+        # Add window icon
+        root_dir = Path(__file__).parent.absolute()
+        icon_path = root_dir / "favicon.png"
+        self.setWindowIcon(QIcon(str(icon_path)))
         # Set icons for the tabs
         self.ui.detail_tabwidget.setTabIcon(self.Tabs.METADATA, qta.icon("fa6s.list"))
         self.ui.detail_tabwidget.setTabIcon(
@@ -279,6 +283,8 @@ class RunBrowserDisplay(QWidget):
         self.ui.logarithm_checkbox.stateChanged.connect(self.update_selected_data)
         self.ui.invert_checkbox.stateChanged.connect(self.update_selected_data)
         self.ui.gradient_checkbox.stateChanged.connect(self.update_selected_data)
+        # Connect window controls
+        self.ui.exit_action.triggered.connect(QApplication.quit)
 
     def swap_signals(self):
         """Swap the value and reference signals."""
@@ -742,7 +748,6 @@ class RunBrowserDisplay(QWidget):
                 #     uids, stream, xcolumn=xsig, ycolumn=ysig, rcolumn=rsig
                 # )
         # 1D line plots
-        print(len(datasets))
         if len(datasets) > 0:
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.LINE, True)
             line_data = self.prepare_1d_dataset(datasets)
@@ -803,7 +808,6 @@ class RunBrowserDisplay(QWidget):
             for row_idx in range(self.runs_model.rowCount())
             if model.item(row_idx, cbox_col).checkState() == Qt.Checked
         ]
-        print(uids)
         return set(uids)
 
     def filters(self, *args):
@@ -835,13 +839,8 @@ class RunBrowserDisplay(QWidget):
         new_filters = {k: v for k, v in new_filters.items() if v not in null_values}
         return new_filters
 
-    def print_data(self, *args, **kwargs):
-        print(args)
-        print(kwargs)
-
     def load_models(self):
         # Set up the model
         self.runs_model = QStandardItemModel()
-        self.runs_model.dataChanged.connect(self.print_data)
         # Add the model to the UI element
         self.ui.run_tableview.setModel(self.runs_model)

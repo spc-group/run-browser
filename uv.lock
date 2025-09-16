@@ -2721,7 +2721,7 @@ requires-dist = [
     { name = "qasync" },
     { name = "qtawesome" },
     { name = "qtpy" },
-    { name = "tiled", extras = ["all"], git = "https://github.com/spc-group/tiled.git?rev=d8b372c5ac40f3a5975167ca71ae6a8e43719707" },
+    { name = "tiled", extras = ["all"], git = "https://github.com/spc-group/tiled.git?rev=d7556bfe162c3e66c4b7068bd527a8c6f7a3b669" },
     { name = "xarray" },
 ]
 
@@ -2898,8 +2898,8 @@ wheels = [
 
 [[package]]
 name = "tiled"
-version = "0.0.1.dev2935+gd8b372c5a"
-source = { git = "https://github.com/spc-group/tiled.git?rev=d8b372c5ac40f3a5975167ca71ae6a8e43719707#d8b372c5ac40f3a5975167ca71ae6a8e43719707" }
+version = "0.0.1.dev2936+gd7556bfe1"
+source = { git = "https://github.com/spc-group/tiled.git?rev=d7556bfe162c3e66c4b7068bd527a8c6f7a3b669#d7556bfe162c3e66c4b7068bd527a8c6f7a3b669" }
 dependencies = [
     { name = "httpx" },
     { name = "json-merge-patch" },

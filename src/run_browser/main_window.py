@@ -124,7 +124,6 @@ class RunBrowserMainWindow(QMainWindow):
             asyncio.gather(self.load_runs(), self.update_combobox_items()),
             name="change_catalog",
         )
-        print("END OF CHANGE CATALOG")
 
     def db_task(self, coro, name="default task"):
         """Executes a co-routine as a database task. Existing database

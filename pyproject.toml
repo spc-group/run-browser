@@ -18,18 +18,19 @@ dependencies = [
     "numpy",
     "pandas",
     "xarray",
-    # We temporarily have this development branch of Tiled so that we get an async client
-    # "tiled>=0.1.0",
-    "tiled[all]@git+https://github.com/spc-group/tiled.git@d7556bfe162c3e66c4b7068bd527a8c6f7a3b669",
-    # Weird tiled dependencies, removed when async client is merged upstream
-    "llvmlite>=0.44.0",
-    "numba>=0.61.2",
     "pyqtgraph",
     "PySide6",
     "qtpy",
     "qtawesome",
     "matplotlib",
     "qasync",
+    "scipy",
+    # We temporarily have this development branch of Tiled so that we get an async client
+    # "tiled>=0.1.0",
+    "tiled[all]@git+https://github.com/spc-group/tiled.git@d7556bfe162c3e66c4b7068bd527a8c6f7a3b669",
+    # Weird tiled dependencies, removed when async client is merged upstream
+    "llvmlite>=0.44.0",
+    "numba>=0.61.2",
 ]
 
 [dependency-groups]
@@ -39,7 +40,7 @@ dev = ["black", "pytest", "pytest-asyncio", "pytest-qt", "pytest-mock", "ruff", 
 Homepage = "https://github.com/spc-group/run-browser"
 
 [project.scripts]
-run_browser = "run_browser.__main__:main"
+"run-browser" = "run_browser.__main__:main"
 
 [build-system]
 build-backend = "hatchling.build"

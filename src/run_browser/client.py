@@ -2,7 +2,7 @@ import asyncio
 import datetime as dt
 import logging
 from collections import ChainMap, OrderedDict
-from collections.abc import Generator
+from collections.abc import AsyncGenerator
 from functools import partial
 from typing import Mapping, Sequence
 
@@ -133,9 +133,8 @@ class DatabaseWorker:
             runs = runs.search(query)
         return runs
 
-    async def distinct_fields(self) -> Generator[tuple[str, dict], None, None]:
+    async def distinct_fields(self) -> AsyncGenerator[tuple[str, list], None]:
         """Get distinct metadata fields for filterable metadata."""
-        new_fields = {}
         # Some of these are disabled since they take forever
         # (could be re-enabled when switching to postgres)
         target_fields = [
@@ -173,8 +172,8 @@ class DatabaseWorker:
             if timestamp is None:
                 run_datetime = ""
             else:
-                run_datetime = dt.datetime.fromtimestamp(timestamp)
-                run_datetime = run_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                run_datetime_ = dt.datetime.fromtimestamp(timestamp)
+                run_datetime = run_datetime_.strftime("%Y-%m-%d %H:%M:%S")
             # Get the X-ray edge scanned
             edge = start_doc.get("edge")
             E0 = start_doc.get("E0")
@@ -238,12 +237,14 @@ class DatabaseWorker:
 
         all_hints = await asyncio.gather(*(get_hints(run) for run in runs))
         # Flatten arrays
+        ihints_: Sequence[str]
+        dhints_: Sequence[str]
         try:
-            ihints, dhints = zip(*all_hints)
+            ihints_, dhints_ = zip(*all_hints)
         except ValueError:
-            ihints, dhints = [], []
-        ihints = {hint for hints in ihints for hint in hints}
-        dhints = {hint for hints in dhints for hint in hints}
+            ihints_, dhints_ = [], []
+        ihints: set[str] = {hint for hints in ihints_ for hint in hints}
+        dhints: set[str] = {hint for hints in dhints_ for hint in hints}
         return ihints, dhints
 
     async def signal_names(self, stream: str, *, hinted_only: bool = False):

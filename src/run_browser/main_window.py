@@ -103,7 +103,7 @@ class RunBrowserMainWindow(QMainWindow):
         self.reset_default_filters()
         self.db = DatabaseWorker()
 
-    def show_message(self, message: str, delay: int = None):
+    def show_message(self, message: str, delay: int | None = None):
         log.info(message)
 
     def load_profiles(self):
@@ -713,14 +713,14 @@ class RunBrowserMainWindow(QMainWindow):
         # Always disable until the spectra view is ready
         self.ui.detail_tabwidget.setTabEnabled(self.Tabs.SPECTRA, False)
 
-    def active_uids(self) -> str:
+    def active_uids(self) -> set[str]:
         """UIDS of runs that are checked or selected in the run list."""
         uids = self.checked_uids()
         if (selected := self.selected_uid()) is not None:
             uids.add(selected)
         return uids
 
-    def selected_uid(self) -> str:
+    def selected_uid(self) -> str | None:
         """The UID of the run currently selected in the list."""
         uid_col = self._run_col_names.index("UID")
         selected = self.ui.run_tableview.selectedIndexes()

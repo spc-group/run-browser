@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-from typing import Sequence
 
 import numpy as np
 import pyqtgraph
@@ -29,8 +28,6 @@ class GridplotView(QtWidgets.QWidget):
     """Handles the plotting of tabular data that was taken on a grid."""
 
     ui_file = Path(__file__).parent / "gridplot_view.ui"
-    shape = ()
-    extent = ()
 
     def __init__(self, parent=None):
         self.data_keys = {}
@@ -45,27 +42,20 @@ class GridplotView(QtWidgets.QWidget):
         vbox.setBackgroundColor("k")
         # Connect internal signals/slots
 
-    def set_image_dimensions(self, metadata: Sequence):
-        if len(metadata) != 1:
-            log.warning(f"Cannot plot grids for {len(metadata)} scans.")
-            self.shape = ()
-            self.extent = ()
-            return
-        md = list(metadata.values())[0]
-        try:
-            self.shape = md["start"]["shape"]
-            self.extent = md["start"]["extents"]
-        except KeyError as exc:
-            self.shape = ()
-            self.extent = ()
-            log.warning("Could not determine grid structure.")
-
-    def regrid(self, points: np.ndarray, values: np.ndarray):
+    def regrid(
+        self,
+        points: np.ndarray,
+        values: np.ndarray,
+        shape: tuple[int],
+        extent: tuple[tuple[float, float], tuple[float, float]],
+    ):
         """Calculate a new image with a shape based on metadata."""
         # Prepare new regular grid to interpolate to
-        (ymin, ymax), (xmin, xmax) = self.extent
-        ystep, xstep = (npts * 1j for npts in self.shape)
-        yy, xx = np.mgrid[ymin:ymax:ystep, xmin:xmax:xstep]
+        (ymin, ymax), (xmin, xmax) = extent
+        ystep, xstep = (npts * 1j for npts in shape)
+        # Explicitly create slices to make type-checkers happy
+        slices = [slice(ymin, ymax, ystep), slice(xmin, xmax, xstep)]
+        yy, xx = np.mgrid[*slices]
         xi = np.c_[yy.flatten(), xx.flatten()]
         # Interpolate
         new_values = griddata(points, values, xi, method="cubic")
@@ -99,12 +89,16 @@ class GridplotView(QtWidgets.QWidget):
             view.setLabels(left=ylabel, bottom=xlabel)
         # Set axes extent
         ycoords, xcoords = dataset.coords.values()
+        xmin: float
+        xmax: float
+        ymin: float
+        ymax: float
         xmin, xmax = np.min(xcoords.values), np.max(xcoords.values)
         ymin, ymax = np.min(ycoords.values), np.max(ycoords.values)
-        x = xmin
-        y = ymin
-        w = xmax - xmin
-        h = ymax - ymin
+        x: float = xmin
+        y: float = ymin
+        w: float = xmax - xmin
+        h: float = ymax - ymin
         img_item.setRect(x, y, w, h)
 
     def clear(self):

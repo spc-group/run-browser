@@ -35,10 +35,12 @@ def test_regrid_data(view):
     xy = np.sqrt(xx**2 + yy**2)
     data = np.cos(xy)
     xmax = np.sqrt(2 * np.pi)
-    view.shape = (61, 61)
-    view.extent = ((-xmax, xmax), (-xmax, xmax))
+    shape = (61, 61)
+    extent = ((-xmax, xmax), (-xmax, xmax))
     points = np.c_[yy.flatten(), xx.flatten()]
-    new_data = view.regrid(points=points, values=data.flatten())
+    new_data = view.regrid(
+        points=points, values=data.flatten(), shape=shape, extent=extent
+    )
     assert new_data.shape == (61 * 61,)
     # Simulate what the interpolated data should be
     xstep = 2 * xmax / 60

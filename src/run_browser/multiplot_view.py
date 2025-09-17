@@ -1,5 +1,5 @@
 import logging
-from collections.abc import Generator, Mapping, Sequence
+from collections.abc import Generator, Sequence
 from itertools import count
 from pathlib import Path
 from typing import Any
@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 
 class MultiplotView(QtWidgets.QWidget):
-    _multiplot_items: Mapping[tuple[int, int], PlotItem]
+    _multiplot_items: dict[tuple[int, int], PlotItem]
     ui_file = Path(__file__).parent / "multiplot_view.ui"
 
     def __init__(self, parent=None):
@@ -35,8 +35,8 @@ class MultiplotView(QtWidgets.QWidget):
           plotted on the vertical axis.
 
         """
-        ysignals = {sig for ds in datasets for sig in ds.keys()}
-        ysignals = sorted(ysignals, key=str.lower)
+        ysignals_ = {sig for ds in datasets for sig in ds.keys()}
+        ysignals = sorted(ysignals_, key=str.lower)
         # Plot the runs
         self.clear_plot()
         for ysignal, plot_item in zip(ysignals, self.multiplot_items()):

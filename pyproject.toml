@@ -27,7 +27,7 @@ dependencies = [
     "scipy",
     # We temporarily have this development branch of Tiled so that we get an async client
     # "tiled>=0.1.0",
-    "tiled[all]@git+https://github.com/spc-group/tiled.git@d7556bfe162c3e66c4b7068bd527a8c6f7a3b669",
+    "tiled[all]@git+https://github.com/spc-group/tiled.git@72a44c1b3a1bb03b31c27d3ec2a2e8c896d4ef09",
     # Weird tiled dependencies, removed when async client is merged upstream
     "llvmlite>=0.44.0",
     "numba>=0.61.2",

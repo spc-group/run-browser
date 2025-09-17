@@ -2723,7 +2723,7 @@ requires-dist = [
     { name = "qtawesome" },
     { name = "qtpy" },
     { name = "scipy" },
-    { name = "tiled", extras = ["all"], git = "https://github.com/spc-group/tiled.git?rev=d7556bfe162c3e66c4b7068bd527a8c6f7a3b669" },
+    { name = "tiled", extras = ["all"], git = "https://github.com/spc-group/tiled.git?rev=72a44c1b3a1bb03b31c27d3ec2a2e8c896d4ef09" },
     { name = "xarray" },
 ]
 
@@ -2971,8 +2971,8 @@ wheels = [
 
 [[package]]
 name = "tiled"
-version = "0.0.1.dev2936+gd7556bfe1"
-source = { git = "https://github.com/spc-group/tiled.git?rev=d7556bfe162c3e66c4b7068bd527a8c6f7a3b669#d7556bfe162c3e66c4b7068bd527a8c6f7a3b669" }
+version = "0.0.1.dev2938+g72a44c1b3"
+source = { git = "https://github.com/spc-group/tiled.git?rev=72a44c1b3a1bb03b31c27d3ec2a2e8c896d4ef09#72a44c1b3a1bb03b31c27d3ec2a2e8c896d4ef09" }
 dependencies = [
     { name = "httpx" },
     { name = "json-merge-patch" },

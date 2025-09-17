@@ -180,8 +180,6 @@ class RunBrowserMainWindow(QMainWindow):
         self.ui.filter_user_combobox.setCurrentText("")
         self.ui.filter_proposal_combobox.setCurrentText("")
         self.ui.filter_esaf_combobox.setCurrentText("")
-        self.ui.filter_current_proposal_checkbox.setChecked(False)
-        self.ui.filter_current_esaf_checkbox.setChecked(False)
         self.ui.filter_beamline_combobox.setCurrentText("")
         self.ui.filter_after_checkbox.setChecked(False)
         self.ui.filter_before_checkbox.setChecked(False)
@@ -191,8 +189,6 @@ class RunBrowserMainWindow(QMainWindow):
     def reset_default_filters(self):
         self.clear_filters()
         self.ui.filter_exit_status_combobox.setCurrentText("success")
-        self.ui.filter_current_esaf_checkbox.setChecked(True)
-        self.ui.filter_current_proposal_checkbox.setChecked(True)
         self.ui.filter_after_checkbox.setChecked(True)
         last_week = dt.datetime.now().astimezone() - dt.timedelta(days=7)
         last_week = QDateTime.fromSecsSinceEpoch(int(last_week.timestamp()))
@@ -534,74 +530,6 @@ class RunBrowserMainWindow(QMainWindow):
     #         label = f"{label} ★"
     #     return label
 
-    ### From lineplot_view
-    # def prepare_plotting_data(self, df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    #     xsignal = self.ui.x_signal_combobox.currentText()
-    #     ysignal = self.ui.y_signal_combobox.currentText()
-    #     rsignal = self.ui.r_signal_combobox.currentText()
-    #     # Get data from dataframe
-    #     xdata = df[xsignal].values
-    #     ydata = df[ysignal].values
-    #     rdata = df[rsignal].values
-    #     # Apply corrections
-    #     if self.ui.r_signal_checkbox.checkState():
-    #         ydata = ydata / rdata
-    #     if self.ui.invert_checkbox.checkState():
-    #         ydata = 1 / ydata
-    #     if self.ui.logarithm_checkbox.checkState():
-    #         ydata = np.log(ydata)
-    #     if self.ui.gradient_checkbox.checkState():
-    #         ydata = np.gradient(ydata, xdata)
-    #     return (xdata, ydata)
-
-    ### From gridplot_view
-    # def prepare_plotting_data(self, df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    #     """Prepare independent and dependent datasets from this
-    #     dataframe and UI state.
-
-    #     Based on the state of various UI widgets, the image data may
-    #     be reference-corrected or inverted and be converted to its
-    #     natural-log or gradeient. Additionally, the images may be
-    #     re-gridded: interpolated to match the readback values of a
-    #     independent, scanned axis (e.g. motor position).
-
-    #     Parameters
-    #     ==========
-    #     df
-    #       The dataframe from which to pull data.
-
-    #     Returns
-    #     =======
-    #     img
-    #       The 2D or 3D image data to plot in (slice, row, col) order.
-
-    #     """
-    #     xsignal = self.ui.regrid_xsignal_combobox.currentText()
-    #     ysignal = self.ui.regrid_ysignal_combobox.currentText()
-    #     vsignal = self.ui.value_signal_combobox.currentText()
-    #     rsignal = self.ui.r_signal_combobox.currentText()
-    #     # Get data from dataframe
-    #     values = df[vsignal]
-    #     # Make the grid linear based on measured motor positions
-    #     if self.ui.regrid_checkbox.checkState():
-    #         xdata = df[xsignal]
-    #         ydata = df[ysignal]
-    #         values = self.regrid(points=np.c_[ydata, xdata], values=values)
-    #     # Apply scaler filters
-    #     if self.ui.r_signal_checkbox.checkState():
-    #         values = values / df[rsignal]
-    #     if self.ui.invert_checkbox.checkState():
-    #         values = 1 / values
-    #     if self.ui.logarithm_checkbox.checkState():
-    #         values = np.log(values)
-    #     # Reshape to an image
-    #     img = np.reshape(values, self.shape)
-    #     # Apply gradient filter
-    #     if self.ui.gradient_checkbox.checkState():
-    #         img = np.gradient(img)
-    #         img = np.linalg.norm(img, axis=0)
-    #     return img
-
     @asyncSlot()
     @cancellable
     async def update_internal_data(self) -> dict[str, pd.DataFrame]:
@@ -657,7 +585,10 @@ class RunBrowserMainWindow(QMainWindow):
         x_label, y_label = self.axis_labels()
         data_vars = {}
         for label, ds in datasets.items():
-            arr = apply_reference(ds[y_signal].values, ds[r_signal].values)
+            arr = ds[y_signal].values
+            reference_selected = self.ui.r_operator_combobox.currentText() != ""
+            if reference_selected:
+                arr = apply_reference(arr, ds[r_signal].values)
             arr = self.reduce_nd_array(arr)
             data_vars[label] = xr.DataArray(
                 arr,
@@ -729,7 +660,8 @@ class RunBrowserMainWindow(QMainWindow):
         uids = self.active_uids()
         xsig = self.x_signal_combobox.currentText()
         ysig = self.y_signal_combobox.currentText()
-        rsig = self.r_signal_combobox.currentText()
+        r_enabled = self.r_operator_combobox.currentText() != ""
+        rsig = self.r_signal_combobox.currentText() if r_enabled else None
         if stream == "":
             datasets = {}
             log.info("Not loading datasets for empty stream.")
@@ -743,6 +675,7 @@ class RunBrowserMainWindow(QMainWindow):
                     ),
                     "update_datasets",
                 )
+                # # Keep for easier debugging
                 # datasets = await self.db.datasets(
                 #     uids, stream, xcolumn=xsig, ycolumn=ysig, rcolumn=rsig
                 # )
@@ -754,18 +687,18 @@ class RunBrowserMainWindow(QMainWindow):
         else:
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.LINE, False)
         # Grid plot
-        ihints, _ = await self.db_task(self.db.hints(uids, stream), "selected hints")
-        if len(ihints) == 2:
-            self.ui.detail_tabwidget.setTabEnabled(self.Tabs.GRID, True)
-            grid_data = (
-                self.prepare_grid_dataset(datasets[selected_uid])
-                if selected_uid
-                else None
-            )
-            self.ui.gridplot_tab.plot(grid_data)
-        else:
-            self.ui.detail_tabwidget.setTabEnabled(self.Tabs.GRID, False)
-            self.ui.gridplot_tab.clear()
+        # ihints, _ = await self.db_task(self.db.hints(uids, stream), "selected hints")
+        # if len(ihints) == 2:
+        #     self.ui.detail_tabwidget.setTabEnabled(self.Tabs.GRID, True)
+        #     grid_data = (
+        #         self.prepare_grid_dataset(datasets[selected_uid])
+        #         if selected_uid
+        #         else None
+        #     )
+        #     self.ui.gridplot_tab.plot(grid_data)
+        # else:
+        #     self.ui.detail_tabwidget.setTabEnabled(self.Tabs.GRID, False)
+        #     self.ui.gridplot_tab.clear()
         # Volume-based data views
         if selected_uid is not None and datasets[selected_uid][ysig].ndim == 3:
             volume_data = self.prepare_volume_dataset(datasets[selected_uid])

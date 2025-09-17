@@ -220,10 +220,8 @@ fake_time = dt.datetime(2022, 8, 19, 19, 10, 51).astimezone()
 def test_default_filters(window):
     window.reset_default_filters()
     assert window.ui.filter_exit_status_combobox.currentText() == "success"
-    assert window.ui.filter_current_esaf_checkbox.checkState()
-    assert window.ui.filter_current_proposal_checkbox.checkState()
     # Test datetime filters
-    assert window.ui.filter_after_checkbox.checkState()
+    assert window.ui.filter_after_checkbox.isChecked()
     last_week = dt.datetime(2022, 8, 12, 19, 10, 51)
     after_filter_time = window.ui.filter_after_datetimeedit.dateTime()
     after_filter_time = dt.datetime.fromtimestamp(after_filter_time.toSecsSinceEpoch())
@@ -313,7 +311,7 @@ async def test_update_no_data_selected(window, qtbot, mocker):
     assert not window.ui.lineplot_tab.plot.called
     assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.LINE)
     assert not window.ui.gridplot_tab.plot.called
-    assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.GRID)
+    # assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.GRID)
     assert not window.ui.frameset_tab.plot.called
     assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.FRAMES)
     assert not window.ui.spectra_tab.plot.called

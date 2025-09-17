@@ -50,13 +50,16 @@ jobs:
         run: uv run --dev mypy
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 5
     needs: [linting, type-checking]
     strategy:
       matrix:
         python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
+      - name: Install system dependencies
+        run: |
+          sudo apt update && sudo apt install -y libegl1-mesa-dev
       - name: Set up UV and Python ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v6
         with:
@@ -64,5 +67,7 @@ jobs:
       # You can test your matrix by printing the current Python version
       - name: Display Python version
         run: python -c "import sys; print(sys.version)"
-      - name: Run tests
-        run: uv run --dev pytest
+      - name: Run headless test
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: uv run --dev pytest

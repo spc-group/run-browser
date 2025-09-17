@@ -28,3 +28,9 @@ repos:
     # Run the linter.
     - id: ruff-check
       args: ["--fix"]
+  # Make sure uv lock file is up to date
+- repo: https://github.com/astral-sh/uv-pre-commit
+  # uv version.
+  rev: 0.8.18
+  hooks:
+    - id: uv-lock

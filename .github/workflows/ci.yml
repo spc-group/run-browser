@@ -12,62 +12,66 @@ on:
 
 
 jobs:
-  linting:
+  uv-lock-file:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
       - uses: actions/checkout@v4
       - name: Set up UV and Python ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v6
+      - name: Check uv lock file
+        run: uv lock --check
+
+  linting:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: prefix-dev/setup-pixi@v0.9.0
         with:
-          python-version: "3.12"
-      # You can test your matrix by printing the current Python version
-      - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
+          pixi-version: v0.49.0
+          cache: true
+          environments: py313
       - name: Ruff linting
-        run: uv run --dev ruff check src/ tests/
+        run: pixi run -e py313 ruff check src/ tests/
       - name: Enforce formatting standards
-        run: uv run --dev black --check --preview src/ tests/
+        run: pixi run -e py313 black --check --preview src/ tests/
       - name: Enforce import sorting
-        run: uv run --dev isort --check src/ tests/
+        run: pixi run -e py313 isort --check src/ tests/
+
   type-checking:
     runs-on: ubuntu-latest
     timeout-minutes: 1
     needs: linting
     strategy:
       matrix:
-        python-version: ["3.12", "3.13"]
+        environment: ["py312", "py313"]
     steps:
       - uses: actions/checkout@v4
-      - name: Set up UV and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v6
+      - name: Set up Pixi environment ${{ matrix.environment }}
+        uses: prefix-dev/setup-pixi@v0.9.0
         with:
-          python-version: ${{ matrix.python-version }}
-      # You can test your matrix by printing the current Python version
-      - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
-      - name: Run tests
-        run: uv run --dev mypy
+          pixi-version: v0.49.0
+          cache: true
+          environments: ${{ matrix.environment }}
+      - name: Run type checker
+        run: pixi run --environment ${{ matrix.environment }} mypy
+
   tests:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [linting, type-checking]
+    needs: linting
     strategy:
       matrix:
-        python-version: ["3.12", "3.13"]
+        environment: ["py312", "py313"]
     steps:
       - uses: actions/checkout@v4
-      - name: Install system dependencies
-        run: |
-          sudo apt update && sudo apt install -y libegl1-mesa-dev
-      - name: Set up UV and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v6
+      - name: Set up Pixi environment ${{ matrix.environment }}
+        uses: prefix-dev/setup-pixi@v0.9.0
         with:
-          python-version: ${{ matrix.python-version }}
+          pixi-version: v0.49.0
+          cache: true
+          environments: ${{ matrix.environment }}
       # You can test your matrix by printing the current Python version
-      - name: Display Python version
-        run: python -c "import sys; print(sys.version)"
       - name: Run headless test
-        uses: coactions/setup-xvfb@v1
-        with:
-          run: uv run --dev pytest
+        run: pixi run --environment ${{ matrix.environment }} pytest

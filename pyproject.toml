@@ -31,7 +31,18 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["black", "pytest", "pytest-asyncio", "pytest-qt", "pytest-mock", "ruff", "isort", "mypy", "time_machine"]
+dev = [
+    "black",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-qt",
+    "pytest-mock",
+    "pytest-xvfb",
+    "ruff",
+    "isort",
+    "mypy",
+    "time_machine"
+]
 
 [project.urls]
 Homepage = "https://github.com/spc-group/run-browser"
@@ -56,3 +67,27 @@ allow-direct-references = true
 
 [tool.ruff.lint]
 select = ["E9", "F63", "F7", "F82", "F401"]
+
+[tool.pixi.dependencies]
+qt6-main = ">=6.9.2,<7"
+pyside6 = ">=6.9.2,<7"
+
+[tool.pixi.workspace]
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[tool.pixi.pypi-dependencies]
+run-browser = { path = ".", editable = true }
+
+[tool.pixi.environments]
+default = { solve-group = "default" }
+dev = { features = ["dev"], solve-group = "default" }
+py312 = ["dev", "py312"]
+py313 = ["dev", "py313"]
+
+[tool.pixi.tasks]
+
+[tool.pixi.feature.py312.dependencies]
+python = "3.12.*"
+[tool.pixi.feature.py313.dependencies]
+python = "3.13.*"

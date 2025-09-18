@@ -437,12 +437,18 @@ def test_prepare_1d_data(window):
         window.ui.y_signal_combobox.addItem("It-net_count")
         window.ui.r_signal_combobox.addItem("I0-net_count")
         window.ui.r_operator_combobox.setCurrentText("÷")
+        window.ui.invert_checkbox.setChecked(True)
+        window.ui.logarithm_checkbox.setChecked(True)
+        window.ui.gradient_checkbox.setChecked(True)
+    It = np.linspace(1003, 1025, num=51)
+    I0 = np.linspace(9658, 10334, num=51)
+    mono_energy = np.linspace(8325, 8355, num=51)
     dataset = {
         "run1": xr.Dataset(
             {
-                "I0-net_count": np.linspace(9658, 10334, num=51),
-                "It-net_count": np.linspace(1003, 1025, num=51),
-                "mono-energy": np.linspace(8325, 8355, num=51),
+                "It-net_count": It,
+                "I0-net_count": I0,
+                "mono-energy": mono_energy,
             }
         ),
     }
@@ -450,13 +456,13 @@ def test_prepare_1d_data(window):
     expected = xr.Dataset(
         {
             "run1": xr.DataArray(
-                np.linspace(1003, 1025, num=51) / np.linspace(9658, 10334, num=51),
-                coords={"mono-energy": np.linspace(8325, 8355, num=51)},
-            ),
+                np.gradient(np.log(I0 / It), mono_energy),
+                coords={"mono-energy": mono_energy},
+            )
         }
     )
-    assert new_data.equals(expected)
-    assert new_data.attrs["data_label"] == "It-net_count ÷ I0-net_count"
+    xr.testing.assert_allclose(new_data, expected)
+    assert new_data.attrs["data_label"] == "∇(ln((It-net_count ÷ I0-net_count)⁻¹))"
     assert new_data.attrs["coord_label"] == "mono-energy"
 
 
@@ -543,7 +549,7 @@ def test_axis_labels(window):
         window.ui.gradient_checkbox.setChecked(True)
     x_label, y_label = window.axis_labels()
     assert x_label == "signal_x"
-    assert y_label == "∇(ln((signal_y + signal_r)⁻))"
+    assert y_label == "∇(ln((signal_y + signal_r)⁻¹))"
 
 
 def test_swap_signals(window):

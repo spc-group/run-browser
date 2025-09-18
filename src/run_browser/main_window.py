@@ -515,7 +515,7 @@ class RunBrowserMainWindow(QMainWindow):
         if roperator != "":
             ylabel = f"{ylabel} {roperator} {rlabel}"
         if self.ui.invert_checkbox.isChecked():
-            ylabel = f"({ylabel})⁻"
+            ylabel = f"({ylabel})⁻¹"
         if self.ui.logarithm_checkbox.isChecked():
             ylabel = f"ln({ylabel})"
         if self.ui.gradient_checkbox.isChecked():
@@ -584,7 +584,8 @@ class RunBrowserMainWindow(QMainWindow):
         return new_array
 
     def prepare_1d_dataset(self, datasets: dict[str, xr.Dataset]) -> xr.Dataset:
-        """Convert runs' datasets into a single dataset with coords.
+        """Convert runs' datasets into a single dataset with coords suitable
+        for line plots.
 
         Data arrays in the set may have the attr *selected* which
         indicates they should be highlighted somehow.
@@ -602,9 +603,17 @@ class RunBrowserMainWindow(QMainWindow):
             if reference_selected:
                 arr = apply_reference(arr, ds[r_signal].values)
             arr = self.reduce_nd_array(arr)
+            # Apply plotting modifiers (logarithm, gradient, etc)
+            xdata = ds[x_signal].values
+            if self.ui.invert_checkbox.isChecked():
+                arr = 1 / arr
+            if self.ui.logarithm_checkbox.isChecked():
+                arr = np.log(arr)
+            if self.ui.gradient_checkbox.isChecked():
+                arr = np.gradient(arr, xdata)
             data_vars[label] = xr.DataArray(
                 arr,
-                coords={x_signal: ds[x_signal].values},
+                coords={x_signal: xdata},
                 name=y_signal,
             )
         new_dataset = xr.Dataset(

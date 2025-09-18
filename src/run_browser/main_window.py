@@ -119,6 +119,9 @@ class RunBrowserMainWindow(QMainWindow):
     @cancellable
     async def change_catalog(self, profile_name: str = DEFAULT_PROFILE):
         """Activate a different catalog in the Tiled server."""
+        if profile_name is None:
+            self.db.catalog = None
+            return
         self.db.catalog = await from_profile_async(profile_name)
         await self.db_task(
             asyncio.gather(self.load_runs(), self.update_combobox_items()),
@@ -239,6 +242,15 @@ class RunBrowserMainWindow(QMainWindow):
         )
         self.ui.detail_tabwidget.setTabIcon(self.Tabs.FRAMES, qta.icon("fa6s.images"))
         self.ui.detail_tabwidget.setTabIcon(self.Tabs.SPECTRA, qta.icon("fa6s.images"))
+        # Enable the datetime pickers when activated
+        self.ui.filter_after_checkbox.setChecked(True)
+        self.ui.filter_before_checkbox.setChecked(False)
+        self.ui.filter_before_checkbox.toggled.connect(
+            self.ui.filter_before_datetimeedit.setEnabled
+        )
+        self.ui.filter_after_checkbox.toggled.connect(
+            self.ui.filter_after_datetimeedit.setEnabled
+        )
         # Setup controls for select which run to show
         self.ui.runs_model.dataChanged.connect(self.update_all_views)
         self.ui.run_tableview.selectionModel().selectionChanged.connect(

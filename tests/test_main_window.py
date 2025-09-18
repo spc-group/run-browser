@@ -572,6 +572,24 @@ def test_update_plot_mean(view):
     assert len(plot_item.dataItems) == 1
 
 
+def test_enable_datetime_before_widget(window):
+    assert not window.ui.filter_before_checkbox.isChecked()
+    assert not window.ui.filter_before_datetimeedit.isEnabled()
+    window.ui.filter_before_checkbox.setChecked(True)
+    assert window.ui.filter_before_datetimeedit.isEnabled()
+    window.ui.filter_before_checkbox.setChecked(False)
+    assert not window.ui.filter_before_datetimeedit.isEnabled()
+
+
+def test_enable_datetime_after_widget(window):
+    assert not window.ui.filter_after_checkbox.isChecked()
+    assert not window.ui.filter_after_datetimeedit.isEnabled()
+    window.ui.filter_after_checkbox.setChecked(True)
+    assert window.ui.filter_after_datetimeedit.isEnabled()
+    window.ui.filter_after_checkbox.setChecked(False)
+    assert not window.ui.filter_after_datetimeedit.isEnabled()
+
+
 # -----------------------------------------------------------------------------
 # :author:    Mark Wolfman
 # :email:     wolfman@anl.gov

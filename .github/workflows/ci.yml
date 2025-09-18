@@ -75,3 +75,18 @@ jobs:
       # You can test your matrix by printing the current Python version
       - name: Run headless test
         run: pixi run --environment ${{ matrix.environment }} pytest
+  release-tag:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    needs: [uv-lock-file, linting, type-checking, tests]
+    steps:
+      - name: update-release-tag
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.git.updateRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'tags/release',
+              sha: context.sha
+            });

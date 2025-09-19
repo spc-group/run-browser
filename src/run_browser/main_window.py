@@ -29,6 +29,11 @@ log = logging.getLogger(__name__)
 
 
 DEFAULT_PROFILE = get_default_profile_name()
+if DEFAULT_PROFILE is None:
+    raise ValueError(
+        "No default Tiled profile set. "
+        "See https://blueskyproject.io/tiled/how-to/profiles.html"
+    )
 
 
 reference_operators = {
@@ -599,13 +604,19 @@ class RunBrowserMainWindow(QMainWindow):
         x_label, y_label = self.axis_labels()
         data_vars = {}
         for label, ds in datasets.items():
-            arr = ds[y_signal].values
             reference_selected = self.ui.r_operator_combobox.currentText() != ""
+            try:
+                arr = ds[y_signal].values
+                xdata = ds[x_signal].values
+                ref_data = ds[r_signal].values if reference_selected else None
+            except KeyError as exc:
+                log.info(f"Could not load {exc} for {label}")
+                continue
             if reference_selected:
-                arr = apply_reference(arr, ds[r_signal].values)
+                arr = apply_reference(arr, ref_data)
             arr = self.reduce_nd_array(arr)
             # Apply plotting modifiers (logarithm, gradient, etc)
-            xdata = ds[x_signal].values
+
             if self.ui.invert_checkbox.isChecked():
                 arr = 1 / arr
             if self.ui.logarithm_checkbox.isChecked():

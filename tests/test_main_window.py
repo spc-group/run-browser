@@ -454,6 +454,8 @@ def test_prepare_1d_data(window):
                 "mono-energy": mono_energy,
             }
         ),
+        # Empty run to make sure it is handles gracefully
+        "run2": xr.Dataset({}),
     }
     new_data = window.prepare_1d_dataset(dataset)
     expected = xr.Dataset(

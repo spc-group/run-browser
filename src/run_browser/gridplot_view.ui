@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>995</width>
-    <height>774</height>
+    <width>723</width>
+    <height>382</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,9 +29,22 @@ If unchecked, the data will still be presented on a fixed grid, but this grid ma
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="lock_aspect_button">
+       <property name="text">
+        <string>Aspect</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="horizontalSpacer_9">
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Orientation::Horizontal</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>

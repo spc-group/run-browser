@@ -99,9 +99,7 @@ async def test_datasets(worker, tiled_client):
     arrays = await worker.datasets(
         uids,
         stream="primary",
-        xcolumn="mono-energy",
-        ycolumn="It-net_count",
-        rcolumn="I0-net_count",
+        variables=["mono-energy", "It-net_count", "I0-net_count"],
     )
     # Check the results
     ds = arrays["xarray_run"]
@@ -110,6 +108,8 @@ async def test_datasets(worker, tiled_client):
     assert "mono-energy" in ds.variables
     assert "It-net_count" in ds.variables
     assert "other_signal" not in ds.variables
+    assert ds.attrs["scan_dimensions"] == ["mono-energy", "aerotech-horiz"]
+    assert ds.attrs["scan_shape"] == [2, 2]
 
 
 @pytest.mark.asyncio

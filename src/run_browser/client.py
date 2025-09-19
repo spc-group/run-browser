@@ -15,6 +15,12 @@ from tiled.client.container import Container
 log = logging.getLogger(__name__)
 
 
+def dimension_hints(start_doc, stream: str):
+    """Get scan dimension information from a run's start doc."""
+    dim_md = start_doc.get("hints", {}).get("dimensions", [])
+    return [sig for signals, strm in dim_md if strm == stream for sig in signals]
+
+
 class DatabaseWorker:
     selected_runs: Sequence = []
     profile: str = ""
@@ -80,7 +86,10 @@ class DatabaseWorker:
         return results
 
     async def datasets(
-        self, uids: Sequence[str], stream: str, xcolumn: str, ycolumn: str, rcolumn: str
+        self,
+        uids: Sequence[str],
+        stream: str,
+        variables: Sequence[str],
     ) -> dict[str, xr.DataArray]:
         """Return data for selected runs as {uid: xarray.Dataset}."""
         if len(uids) == 0:
@@ -88,11 +97,17 @@ class DatabaseWorker:
         runs = self.runs(uids)
 
         async def get_xarray(run):
+            start_doc = run.metadata.get("start", {})
+            dimensions = dimension_hints(start_doc, stream=stream)
             node = await run[f"streams/{stream}"]
             if not hasattr(node, "read"):
                 log.warning(f"Node {node} cannot be read.")
-                return xr.Dataset({})
-            return await node.read(variables=[xcolumn, ycolumn, rcolumn])
+                ds = xr.Dataset({})
+            ds = await node.read(variables=variables)
+            ds.attrs["scan_dimensions"] = dimensions
+            if "shape" in start_doc:
+                ds.attrs["scan_shape"] = start_doc["shape"]
+            return ds
 
         async with asyncio.TaskGroup() as tg:
             tasks = {
@@ -223,10 +238,7 @@ class DatabaseWorker:
             run_md = run.metadata
             stream_md = (await run[f"streams/{stream}"]).metadata
             # Get hints for the independent (X)
-            dimensions = run_md.get("start", {}).get("hints", {}).get("dimensions", [])
-            independent = [
-                sig for signals, strm in dimensions if strm == stream for sig in signals
-            ]
+            independent = dimension_hints(run_md.get("start", {}), stream=stream)
             # Get hints for the dependent (Y) axes
             dependent = [
                 hint

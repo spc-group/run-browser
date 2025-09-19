@@ -145,10 +145,23 @@ tree = MapAdapter(
                         "primary": DatasetAdapter.from_dataset(
                             xr.Dataset(
                                 {
-                                    "I0-net_count": ("mono-energy", [200, 300, 250]),
-                                    "It-net_count": ("mono-energy", [200, 300, 250]),
-                                    "other_signal": ("mono-energy", [10, 122, 13345]),
-                                    "mono-energy": ("mono-energy", [0, 1, 2]),
+                                    "I0-net_count": (
+                                        "mono-energy",
+                                        [200, 300, 250, 350],
+                                    ),
+                                    "It-net_count": (
+                                        "mono-energy",
+                                        [200, 300, 250, 350],
+                                    ),
+                                    "other_signal": (
+                                        "mono-energy",
+                                        [10, 122, 13345, 159832],
+                                    ),
+                                    "mono-energy": ("mono-energy", [0, 1, 2, 3]),
+                                    "aerotech-horiz": (
+                                        "mono-energy",
+                                        [-50, -20, 10, 40],
+                                    ),
                                 }
                             ),
                         ),
@@ -158,6 +171,13 @@ tree = MapAdapter(
             metadata={
                 "start": {
                     "uid": "xarray_run",
+                    "shape": (2, 2),
+                    "hints": {
+                        "dimensions": [
+                            [["mono-energy"], "primary"],
+                            [["aerotech-horiz"], "primary"],
+                        ],
+                    },
                 },
             },
         ),

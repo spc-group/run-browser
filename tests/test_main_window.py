@@ -275,12 +275,12 @@ async def test_update_selected_data(window, qtbot, mocker):
     with block_signals(
         window.ui.stream_combobox,
         window.ui.x_signal_combobox,
-        window.ui.y_signal_combobox,
+        window.ui.v_signal_combobox,
         window.ui.r_signal_combobox,
     ):
         window.ui.stream_combobox.addItem("primary")
         window.ui.x_signal_combobox.addItem("mono-energy")
-        window.ui.y_signal_combobox.addItem("It-net_count")
+        window.ui.v_signal_combobox.addItem("It-net_count")
         window.ui.r_signal_combobox.addItem("I0-net_count")
     # Check that the clients got called
     window.ui.lineplot_tab.plot = mocker.MagicMock()
@@ -288,6 +288,7 @@ async def test_update_selected_data(window, qtbot, mocker):
     window.ui.frameset_tab.plot = mocker.MagicMock()
     window.ui.spectra_tab.plot = mocker.MagicMock()
     await window.update_selected_data()
+    # Line plotting was called
     assert window.ui.lineplot_tab.plot.called
     args, kwargs = window.ui.lineplot_tab.plot.call_args
     dataset = args[0]
@@ -295,6 +296,8 @@ async def test_update_selected_data(window, qtbot, mocker):
     arr = dataset["xarray_run"]
     assert "mono-energy" in arr.coords
     assert dataset.attrs["data_label"] == "It-net_count"
+    # Grid plotting was called
+    assert window.ui.gridplot_tab.plot.called
 
 
 @pytest.mark.asyncio
@@ -367,7 +370,7 @@ async def test_signal_options(window, mocker):
     combobox = window.ui.x_signal_combobox
     signals = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert signals == expected_signals
-    combobox = window.ui.y_signal_combobox
+    combobox = window.ui.v_signal_combobox
     signals = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert signals == expected_signals
     combobox = window.ui.r_signal_combobox
@@ -410,7 +413,7 @@ async def test_hinted_signal_options(window, mocker):
         "Ipreslit_net_counts",
         "It_net_counts",
     ]
-    combobox = window.ui.y_signal_combobox
+    combobox = window.ui.v_signal_combobox
     signals = [combobox.itemText(idx) for idx in range(combobox.count())]
     assert signals == expected_signals
     # Check hinted reference signals
@@ -432,9 +435,9 @@ def test_reduce_nd_array(window, arr, expected):
 
 
 def test_prepare_1d_data(window):
-    with block_signals(window.ui.x_signal_combobox, window.ui.y_signal_combobox):
+    with block_signals(window.ui.x_signal_combobox, window.ui.v_signal_combobox):
         window.ui.x_signal_combobox.addItem("mono-energy")
-        window.ui.y_signal_combobox.addItem("It-net_count")
+        window.ui.v_signal_combobox.addItem("It-net_count")
         window.ui.r_signal_combobox.addItem("I0-net_count")
         window.ui.r_operator_combobox.setCurrentText("÷")
         window.ui.invert_checkbox.setChecked(True)
@@ -467,9 +470,9 @@ def test_prepare_1d_data(window):
 
 
 def test_prepare_grid_data(window):
-    with block_signals(window.ui.x_signal_combobox, window.ui.y_signal_combobox):
+    with block_signals(window.ui.x_signal_combobox, window.ui.v_signal_combobox):
         window.ui.x_signal_combobox.addItem("mono-energy")
-        window.ui.y_signal_combobox.addItem("I0-net_count")
+        window.ui.v_signal_combobox.addItem("I0-net_count")
     grid_shape = (15, 11)
     yy, xx = np.mgrid[:15, :11]
     data = xr.Dataset(
@@ -478,14 +481,13 @@ def test_prepare_grid_data(window):
             "aerotech-vert": yy.flatten(),
             "aerotech-horiz": xx.flatten(),
         },
+        attrs={
+            "scan_shape": grid_shape,
+            "scan_dimensions": ["aerotech-vert", "aerotech-horiz"],
+        },
     )
     # Create the new dataset
-    new_data = window.prepare_grid_dataset(
-        data,
-        grid_shape=grid_shape,
-        extent=[],
-        coord_signals=["aerotech-vert", "aerotech-horiz"],
-    )
+    new_data = window.prepare_grid_dataset(data)
     # Verify the new dataset
     expected = xr.DataArray(
         np.linspace(9658, 10334, num=np.prod(grid_shape)).reshape(grid_shape),
@@ -498,9 +500,9 @@ def test_prepare_grid_data(window):
 
 
 def test_prepare_volume_data(window):
-    with block_signals(window.ui.x_signal_combobox, window.ui.y_signal_combobox):
+    with block_signals(window.ui.x_signal_combobox, window.ui.v_signal_combobox):
         window.ui.x_signal_combobox.addItem("mono-energy")
-        window.ui.y_signal_combobox.addItem("vortex")
+        window.ui.v_signal_combobox.addItem("vortex")
     shape = (16, 8, 4)
     data = xr.Dataset(
         {
@@ -533,7 +535,7 @@ def test_label_from_metadata():
 def test_axis_labels(window):
     with block_signals(
         window.ui.x_signal_combobox,
-        window.ui.y_signal_combobox,
+        window.ui.v_signal_combobox,
         window.ui.r_operator_combobox,
         window.ui.r_signal_combobox,
         window.ui.invert_checkbox,
@@ -541,7 +543,7 @@ def test_axis_labels(window):
         window.ui.gradient_checkbox,
     ):
         window.ui.x_signal_combobox.addItem("signal_x")
-        window.ui.y_signal_combobox.addItem("signal_y")
+        window.ui.v_signal_combobox.addItem("signal_y")
         window.ui.r_signal_combobox.addItem("signal_r")
         window.ui.r_operator_combobox.setCurrentText("+")
         window.ui.invert_checkbox.setChecked(True)
@@ -554,14 +556,14 @@ def test_axis_labels(window):
 
 def test_swap_signals(window):
     signal_names = ["It-net_current", "I0-net_current"]
-    with block_signals(window.ui.y_signal_combobox, window.ui.r_signal_combobox):
-        window.ui.y_signal_combobox.addItems(signal_names)
-        window.ui.y_signal_combobox.setCurrentText(signal_names[0])
+    with block_signals(window.ui.v_signal_combobox, window.ui.r_signal_combobox):
+        window.ui.v_signal_combobox.addItems(signal_names)
+        window.ui.v_signal_combobox.setCurrentText(signal_names[0])
         window.ui.r_signal_combobox.addItems(signal_names)
         window.ui.r_signal_combobox.setCurrentText(signal_names[1])
         window.swap_signals()
     # Make sure the signals were actually swapped
-    assert window.ui.y_signal_combobox.currentText() == signal_names[1]
+    assert window.ui.v_signal_combobox.currentText() == signal_names[1]
     assert window.ui.r_signal_combobox.currentText() == signal_names[0]
 
 

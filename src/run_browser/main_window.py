@@ -277,7 +277,7 @@ class RunBrowserMainWindow(QMainWindow):
         self.ui.use_hints_checkbox.stateChanged.connect(self.update_signal_widgets)
         self.ui.x_signal_combobox.currentTextChanged.connect(self.update_internal_data)
         self.ui.x_signal_combobox.currentTextChanged.connect(self.update_selected_data)
-        self.ui.y_signal_combobox.currentTextChanged.connect(self.update_selected_data)
+        self.ui.v_signal_combobox.currentTextChanged.connect(self.update_selected_data)
         self.ui.swap_button.setIcon(qta.icon("mdi.swap-horizontal"))
         self.ui.swap_button.clicked.connect(self.swap_signals)
         self.ui.r_operator_combobox.currentTextChanged.connect(
@@ -295,9 +295,9 @@ class RunBrowserMainWindow(QMainWindow):
 
     def swap_signals(self):
         """Swap the value and reference signals."""
-        new_r = self.ui.y_signal_combobox.currentText()
+        new_r = self.ui.v_signal_combobox.currentText()
         new_y = self.ui.r_signal_combobox.currentText()
-        self.ui.y_signal_combobox.setCurrentText(new_y)
+        self.ui.v_signal_combobox.setCurrentText(new_y)
         self.ui.r_signal_combobox.setCurrentText(new_r)
 
     @asyncSlot()
@@ -322,7 +322,7 @@ class RunBrowserMainWindow(QMainWindow):
         # Update the UI
         comboboxes = [
             self.ui.x_signal_combobox,
-            self.ui.y_signal_combobox,
+            self.ui.v_signal_combobox,
             self.ui.r_signal_combobox,
         ]
         for combobox, new_cols in zip(comboboxes, [new_xcols, new_ycols, new_ycols]):
@@ -495,10 +495,11 @@ class RunBrowserMainWindow(QMainWindow):
             self.update_selected_data(),
         )
 
-    async def data_signals(self) -> tuple[dict, set[str], set[str]]:
+    async def data_signals(self, uids=None) -> tuple[dict, set[str], set[str]]:
         """Get valid keys and hints for the selected UIDs."""
         stream = self.ui.stream_combobox.currentText()
-        uids = self.active_uids()
+        if uids is None:
+            uids = self.active_uids()
         with self.busy_hints(run_widgets=True, run_table=False, filter_widgets=False):
             data_keys, hints = await asyncio.gather(
                 self.db_task(self.db.data_keys(uids, stream), "update data keys"),
@@ -509,7 +510,7 @@ class RunBrowserMainWindow(QMainWindow):
 
     def axis_labels(self):
         xlabel = self.ui.x_signal_combobox.currentText()
-        ylabel = self.ui.y_signal_combobox.currentText()
+        ylabel = self.ui.v_signal_combobox.currentText()
         rlabel = self.ui.r_signal_combobox.currentText()
         roperator = self.ui.r_operator_combobox.currentText()
         if roperator != "":
@@ -592,7 +593,7 @@ class RunBrowserMainWindow(QMainWindow):
 
         """
         x_signal = self.ui.x_signal_combobox.currentText()
-        y_signal = self.ui.y_signal_combobox.currentText()
+        y_signal = self.ui.v_signal_combobox.currentText()
         apply_reference = reference_operators[self.ui.r_operator_combobox.currentText()]
         r_signal = self.ui.r_signal_combobox.currentText()
         x_label, y_label = self.axis_labels()
@@ -628,33 +629,33 @@ class RunBrowserMainWindow(QMainWindow):
     def prepare_grid_dataset(
         self,
         dataset: xr.Dataset,
-        grid_shape: tuple[int, ...],
-        extent: tuple[float, float, float, float],
-        coord_signals: list[str],
     ) -> xr.DataArray:
-        """Convert runs' datasets into a single dataset with coords.
-
-        Data arrays in the set may have the attr *selected* which
-        indicates they should be highlighted somehow.
+        """Convert runs' datasets into a single dataset with coords suitable
+        for plotting on a 2D grid.
 
         """
-        y_signal, x_signal = coord_signals
+        grid_shape = dataset.attrs["scan_shape"]
+        scan_dims = dataset.attrs["scan_dimensions"]
+        ndims = len(scan_dims)
         coords = {
-            y_signal: np.median(dataset[y_signal].values.reshape(grid_shape), axis=1),
-            x_signal: np.median(dataset[x_signal].values.reshape(grid_shape), axis=0),
+            signal: np.median(
+                dataset[signal].values.reshape(grid_shape),
+                axis=(i for i in range(ndims) if i != dim_num),
+            )
+            for dim_num, signal in enumerate(scan_dims)
         }
-        v_signal = self.ui.y_signal_combobox.currentText()
+        v_signal = self.ui.v_signal_combobox.currentText()
         new_dataset = xr.DataArray(
             dataset[v_signal].values.reshape(grid_shape),
             coords=coords,
-            name=y_signal,
+            name=v_signal,
         )
         return new_dataset
 
     def prepare_volume_dataset(self, dataset: xr.Dataset) -> xr.DataArray:
         """Convert run dataset into a new dataset with coords."""
         x_signal = self.ui.x_signal_combobox.currentText()
-        y_signal = self.ui.y_signal_combobox.currentText()
+        y_signal = self.ui.v_signal_combobox.currentText()
         vals = dataset[y_signal].values
         extra_coords = {
             f"coord_{idx+1}": np.arange(size) for idx, size in enumerate(vals.shape[1:])
@@ -680,19 +681,21 @@ class RunBrowserMainWindow(QMainWindow):
         selected_uid = self.selected_uid()
         uids = self.active_uids()
         xsig = self.x_signal_combobox.currentText()
-        ysig = self.y_signal_combobox.currentText()
+        ysig = self.v_signal_combobox.currentText()
         r_enabled = self.r_operator_combobox.currentText() != ""
         rsig = self.r_signal_combobox.currentText() if r_enabled else None
         if stream == "":
             datasets = {}
             log.info("Not loading datasets for empty stream.")
         else:
+            # Need to include independent hints for maps
+            _, ihints, _ = await self.data_signals()
             with self.busy_hints(
                 run_widgets=True, run_table=False, filter_widgets=False
             ):
                 datasets = await self.db_task(
                     self.db.datasets(
-                        uids, stream, xcolumn=xsig, ycolumn=ysig, rcolumn=rsig
+                        uids, stream, variables=[xsig, ysig, rsig, *ihints]
                     ),
                     "update_datasets",
                 )
@@ -708,20 +711,21 @@ class RunBrowserMainWindow(QMainWindow):
         else:
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.LINE, False)
         # Grid plot
-        # ihints, _ = await self.db_task(self.db.hints(uids, stream), "selected hints")
-        # if len(ihints) == 2:
-        #     self.ui.detail_tabwidget.setTabEnabled(self.Tabs.GRID, True)
-        #     grid_data = (
-        #         self.prepare_grid_dataset(datasets[selected_uid])
-        #         if selected_uid
-        #         else None
-        #     )
-        #     self.ui.gridplot_tab.plot(grid_data)
-        # else:
-        #     self.ui.detail_tabwidget.setTabEnabled(self.Tabs.GRID, False)
-        #     self.ui.gridplot_tab.clear()
+        selected_dataset = datasets[selected_uid] if selected_uid is not None else None
+        scan_dims = (
+            selected_dataset.attrs.get("scan_dimensions")
+            if selected_dataset is not None
+            else []
+        )
+        if len(scan_dims) >= 2:
+            self.ui.detail_tabwidget.setTabEnabled(self.Tabs.GRID, True)
+            grid_data = self.prepare_grid_dataset(selected_dataset)
+            self.ui.gridplot_tab.plot(grid_data)
+        else:
+            self.ui.detail_tabwidget.setTabEnabled(self.Tabs.GRID, False)
+            self.ui.gridplot_tab.clear()
         # Volume-based data views
-        if selected_uid is not None and datasets[selected_uid][ysig].ndim == 3:
+        if selected_dataset is not None and selected_dataset[ysig].ndim == 3:
             volume_data = self.prepare_volume_dataset(datasets[selected_uid])
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.FRAMES, True)
             self.ui.frameset_tab.plot(volume_data)

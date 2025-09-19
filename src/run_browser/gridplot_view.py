@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pyqtgraph
+import qtawesome as qta
 import xarray as xr
 from matplotlib.colors import TABLEAU_COLORS
 from pyqtgraph import ImageView, PlotItem
@@ -41,6 +42,20 @@ class GridplotView(QtWidgets.QWidget):
         vbox = self.ui.plot_widget.ui.roiPlot.getPlotItem().getViewBox()
         vbox.setBackgroundColor("k")
         # Connect internal signals/slots
+        # Set up control widgets
+        self.ui.lock_aspect_button.toggled.connect(
+            self.plot_widget.getView().setAspectLocked
+        )
+        self.ui.lock_aspect_button.toggled.connect(self.toggle_lock_icon)
+        self.toggle_lock_icon(True)
+
+    def toggle_lock_icon(self, state: bool):
+        """Toggle the lock icon on the lock aspect button."""
+        if state:
+            icon = qta.icon("fa6s.lock")
+        else:
+            icon = qta.icon("fa6s.unlock")
+        self.ui.lock_aspect_button.setIcon(icon)
 
     def regrid(
         self,
@@ -79,7 +94,7 @@ class GridplotView(QtWidgets.QWidget):
         # Set axis labels
         img_item = self.ui.plot_widget.getImageItem()
         try:
-            ylabel, xlabel = self.independent_hints
+            ylabel, xlabel = dataset.coords.keys()
         except ValueError:
             log.warning(
                 f"Could not determine grid labels from hints: {self.independent_hints}"

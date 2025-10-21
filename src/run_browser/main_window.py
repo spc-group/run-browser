@@ -2,6 +2,7 @@ import asyncio
 import datetime as dt
 import enum
 import logging
+import warnings
 from collections import Counter
 from contextlib import contextmanager
 from functools import wraps
@@ -30,10 +31,12 @@ log = logging.getLogger(__name__)
 
 DEFAULT_PROFILE = get_default_profile_name()
 if DEFAULT_PROFILE is None:
-    raise ValueError(
+    msg = (
         "No default Tiled profile set. "
         "See https://blueskyproject.io/tiled/how-to/profiles.html"
     )
+    log.warning(msg)
+    warnings.warn(msg)
 
 
 reference_operators = {
@@ -124,7 +127,7 @@ class RunBrowserMainWindow(QMainWindow):
     @cancellable
     async def change_catalog(self, profile_name: str = DEFAULT_PROFILE):
         """Activate a different catalog in the Tiled server."""
-        if profile_name is None:
+        if profile_name == "":
             self.db.catalog = None
             return
         self.db.catalog = await from_profile_async(profile_name)

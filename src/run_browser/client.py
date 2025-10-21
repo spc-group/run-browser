@@ -129,7 +129,7 @@ class DatabaseWorker:
             "user": (queries.Contains, "start.proposal_users"),
             "proposal": (queries.Eq, "start.proposal_id"),
             "esaf": (queries.Eq, "start.esaf_id"),
-            "beamline": (queries.Eq, "start.beamline_id"),
+            "beamline": (queries.Eq, "start.beamline"),
             "before": (partial(queries.Comparison, "le"), "stop.time"),
             "after": (partial(queries.Comparison, "ge"), "start.time"),
             "full_text": (queries.FullText, ""),
@@ -161,7 +161,7 @@ class DatabaseWorker:
             "stop.exit_status",
             "start.proposal_id",
             "start.esaf_id",
-            "start.beamline_id",
+            "start.beamline",
         ]
         # Get fields from the database
         for field_name, values in (await self.catalog.distinct(*target_fields))[

@@ -70,7 +70,7 @@ tree = MapAdapter(
                         ],
                     },
                     "plan_name": "scan",
-                    "beamline_id": "25-ID-C",
+                    "beamline": "25-ID-C",
                     "sample_name": "Miso",
                     "sample_formula": "Ms",
                     "scan_name": "Dinner",

@@ -219,7 +219,7 @@ class RunBrowserMainWindow(QMainWindow):
             "stop.exit_status": self.ui.filter_exit_status_combobox,
             "start.proposal_id": self.ui.filter_proposal_combobox,
             "start.esaf_id": self.ui.filter_esaf_combobox,
-            "start.beamline_id": self.ui.filter_beamline_combobox,
+            "start.beamline": self.ui.filter_beamline_combobox,
         }
         # Clear old entries first so we don't have stale ones
         for key, cb in filter_boxes.items():

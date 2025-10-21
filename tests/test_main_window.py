@@ -322,6 +322,45 @@ async def test_update_no_data_selected(window, qtbot, mocker):
 
 
 @pytest.mark.asyncio
+async def test_update_non_grid(window, qtbot, mocker):
+    """Regression test for a bug in the way grid-scans are identified.
+
+    Previously we used the number of hinted scan dimensions, but a
+    trajectory line scan with two axes can also have two hinted
+    dimensions, so we need to use the shape of the scan explicitly.
+
+    """
+    window.active_uids = mocker.MagicMock(return_value={"xarray_line_scan"})
+    window.selected_uid = mocker.MagicMock(return_value="xarray_line_scan")
+    with block_signals(
+        window.ui.stream_combobox,
+        window.ui.x_signal_combobox,
+        window.ui.v_signal_combobox,
+        window.ui.r_signal_combobox,
+    ):
+        window.ui.stream_combobox.addItem("primary")
+        window.ui.x_signal_combobox.addItem("mono-energy")
+        window.ui.v_signal_combobox.addItem("It-net_count")
+        window.ui.r_signal_combobox.addItem("I0-net_count")
+    # Check that the clients got called
+    window.ui.lineplot_tab.plot = mocker.MagicMock()
+    window.ui.gridplot_tab.plot = mocker.MagicMock()
+    window.ui.frameset_tab.plot = mocker.MagicMock()
+    window.ui.spectra_tab.plot = mocker.MagicMock()
+    await window.update_selected_data()
+    # Line plotting was called
+    assert window.ui.lineplot_tab.plot.called
+    args, kwargs = window.ui.lineplot_tab.plot.call_args
+    dataset = args[0]
+    assert isinstance(dataset, xr.Dataset)
+    arr = dataset["xarray_line_scan"]
+    assert "mono-energy" in arr.coords
+    assert dataset.attrs["data_label"] == "It-net_count"
+    # Grid plotting wasn't called
+    assert not window.ui.gridplot_tab.plot.called
+
+
+@pytest.mark.asyncio
 async def test_profile_choices(window):
     combobox = window.ui.profile_combobox
     items = [combobox.itemText(idx) for idx in range(combobox.count())]

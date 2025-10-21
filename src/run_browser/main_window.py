@@ -723,12 +723,12 @@ class RunBrowserMainWindow(QMainWindow):
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.LINE, False)
         # Grid plot
         selected_dataset = datasets[selected_uid] if selected_uid is not None else None
-        scan_dims = (
-            selected_dataset.attrs.get("scan_dimensions")
+        scan_shape = (
+            selected_dataset.attrs.get("scan_shape", [])
             if selected_dataset is not None
             else []
         )
-        if len(scan_dims) >= 2:
+        if len(scan_shape) >= 2:
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.GRID, True)
             grid_data = self.prepare_grid_dataset(selected_dataset)
             self.ui.gridplot_tab.plot(grid_data)

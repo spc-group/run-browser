@@ -181,6 +181,49 @@ tree = MapAdapter(
                 },
             },
         ),
+        "xarray_line_scan": MapAdapter(
+            {
+                "streams": MapAdapter(
+                    {
+                        "primary": DatasetAdapter.from_dataset(
+                            xr.Dataset(
+                                {
+                                    "I0-net_count": (
+                                        "mono-energy",
+                                        [200, 300, 250, 350],
+                                    ),
+                                    "It-net_count": (
+                                        "mono-energy",
+                                        [200, 300, 250, 350],
+                                    ),
+                                    "other_signal": (
+                                        "mono-energy",
+                                        [10, 122, 13345, 159832],
+                                    ),
+                                    "mono-energy": ("mono-energy", [0, 1, 2, 3]),
+                                    "aerotech-horiz": (
+                                        "mono-energy",
+                                        [-50, -20, 10, 40],
+                                    ),
+                                }
+                            ),
+                        ),
+                    },
+                ),
+            },
+            metadata={
+                "start": {
+                    "uid": "xarray_line_scan",
+                    # Has dimension hints, but no shape
+                    "hints": {
+                        "dimensions": [
+                            [["mono-energy"], "primary"],
+                            [["aerotech-horiz"], "primary"],
+                        ],
+                    },
+                },
+            },
+        ),
     }
 )
 

@@ -19,11 +19,11 @@ from qasync import asyncSlot
 from qtpy import uic
 from qtpy.QtCore import QDateTime, Qt
 from qtpy.QtGui import QIcon, QStandardItem, QStandardItemModel
-from qtpy.QtWidgets import QApplication, QErrorMessage, QMainWindow
+from qtpy.QtWidgets import QApplication, QComboBox, QErrorMessage, QMainWindow
 from tiled.client import from_profile_async
 from tiled.profiles import get_default_profile_name, list_profiles
 
-from run_browser.client import DatabaseWorker
+from run_browser.client import MERGED, DatabaseWorker, DataSignal
 from run_browser.widgets import ExportDialog
 
 log = logging.getLogger(__name__)
@@ -102,9 +102,9 @@ class RunBrowserMainWindow(QMainWindow):
         SPECTRA = 5
         VOLUME = 6
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, merge_streams: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
-        self.load_ui()
+        self.load_ui(merge_streams=merge_streams)
         self.selected_runs = []
         self._running_db_tasks = {}
         self._busy_hinters = Counter()
@@ -231,10 +231,13 @@ class RunBrowserMainWindow(QMainWindow):
             cb.addItems(fields)
             cb.setCurrentText(old_value)
 
-    def load_ui(self):
+    def load_ui(self, merge_streams: bool = True):
         self.ui = uic.loadUi(self.ui_file, self)
         self.load_models()
         self.load_profiles()
+        # Disable the merge signals checkbox if the feature is disabled
+        if not merge_streams:
+            self.ui.merge_streams_checkbox.setVisible(False)
         # Add window icon
         root_dir = Path(__file__).parent.absolute()
         icon_path = root_dir / "favicon.png"
@@ -265,7 +268,7 @@ class RunBrowserMainWindow(QMainWindow):
             self.update_all_views
         )
         self.ui.run_tableview.selectionModel().selectionChanged.connect(
-            self.update_export_button
+            self.update_export_action
         )
         self.ui.refresh_runs_button.setIcon(qta.icon("fa6s.arrows-rotate"))
         self.ui.refresh_runs_button.clicked.connect(self.reload_runs)
@@ -278,7 +281,7 @@ class RunBrowserMainWindow(QMainWindow):
         self.ui.reload_plots_button.clicked.connect(self.update_all_views)
         self.ui.stream_combobox.currentTextChanged.connect(self.update_signal_widgets)
         # Create a new export dialog for saving files
-        self.ui.export_button.clicked.connect(self.export_runs)
+        self.ui.export_action.triggered.connect(self.export_runs)
         self.export_dialog = ExportDialog(parent=self)
         self.error_dialog = QErrorMessage(parent=self)
         # Respond to signal selection widgets
@@ -318,28 +321,38 @@ class RunBrowserMainWindow(QMainWindow):
         used.
 
         """
-        data_keys, ihints, dhints = await self.data_signals()
+        data_signals, ihints, dhints = await self.data_signals()
         # Decide whether we want to use hints
         use_hints = self.ui.use_hints_checkbox.isChecked()
+        xsigs, vsigs = data_signals, data_signals
         if use_hints:
-            new_xcols = ihints
-            new_ycols = dhints
-        else:
-            new_xcols = list(data_keys.keys())
-            new_ycols = list(data_keys.keys())
+            xsigs = [sig for sig in xsigs if sig.is_scan_dimension]
+            vsigs = [sig for sig in vsigs if sig.is_hinted]
         # Update the UI
         comboboxes = [
             self.ui.x_signal_combobox,
             self.ui.v_signal_combobox,
             self.ui.r_signal_combobox,
         ]
-        for combobox, new_cols in zip(comboboxes, [new_xcols, new_ycols, new_ycols]):
-            old_value = combobox.currentText()
-            with block_signals(combobox):
-                combobox.clear()
-                combobox.addItems(sorted(new_cols, key=str.lower))
-                if old_value in new_cols:
-                    combobox.setCurrentText(old_value)
+        for combobox, new_signals in zip(comboboxes, [xsigs, vsigs, vsigs]):
+            self._set_combobox_signals(combobox, new_signals)
+
+    def _set_combobox_signals(self, combobox: QComboBox, signals: Sequence[DataSignal]):
+        # If we're using merged streams, we want to include the stream at the end
+        active_stream = self.stream
+        # Now go through and add the options
+        old_value = combobox.currentText()
+        signals = sorted(signals, key=lambda sig: sig.name.lower())
+        with block_signals(combobox):
+            combobox.clear()
+            for signal in signals:
+                if signal.stream in [active_stream, None]:
+                    text = signal.name
+                else:
+                    text = f"{signal.name} ({signal.stream})"
+                combobox.addItem(text, userData=signal)
+                if text == old_value:
+                    combobox.setCurrentText(text)
 
     def auto_range(self):
         self.plot_1d_view.autoRange()
@@ -428,10 +441,10 @@ class RunBrowserMainWindow(QMainWindow):
         current_text = self.ui.stream_combobox.currentText()
         return current_text or "primary"
 
-    def update_export_button(self):
+    def update_export_action(self):
         # We can only export one scan at a time from here
         should_enable = self.selected_runs is not None and len(self.selected_runs) == 1
-        self.ui.export_button.setEnabled(should_enable)
+        self.ui.export_action.setEnabled(should_enable)
 
     @asyncSlot()
     async def export_runs(self):
@@ -505,12 +518,16 @@ class RunBrowserMainWindow(QMainWindow):
 
     async def data_signals(self, uids=None) -> tuple[dict, set[str], set[str]]:
         """Get valid keys and hints for the selected UIDs."""
+        # Prepare the arguments
         stream = self.ui.stream_combobox.currentText()
+        if self.ui.merge_streams_checkbox.isChecked():
+            stream = MERGED
         if uids is None:
             uids = self.active_uids()
+        # Do the database hit
         with self.busy_hints(run_widgets=True, run_table=False, filter_widgets=False):
             data_keys, hints = await asyncio.gather(
-                self.db_task(self.db.data_keys(uids, stream), "update data keys"),
+                self.db_task(self.db.data_signals(uids, stream), "update data signals"),
                 self.db_task(self.db.hints(uids, stream), "update data hints"),
             )
         independent_hints, dependent_hints = hints

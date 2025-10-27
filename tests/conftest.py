@@ -43,6 +43,18 @@ tree = MapAdapter(
                                     "ge_8element": {},
                                     "ge_8element-deadtime_factor": {},
                                     "energy_energy": {},
+                                    "aerotech_horiz": {},
+                                    "aerotech_vert": {},
+                                    "CdnI0_net_counts": {},
+                                    "CdnIPreKb_net_counts": {},
+                                    "CdnIt_net_counts": {},
+                                    "I0_net_counts": {},
+                                    "Ipre_KB_net_counts": {},
+                                    "Ipreslit_net_counts": {},
+                                    "I0_net_counts": {},
+                                    "Ipre_KB_net_counts": {},
+                                    "Ipreslit_net_counts": {},
+                                    "It_net_counts": {},
                                 },
                                 "hints": {
                                     "Ipreslit": {"fields": ["Ipreslit_net_counts"]},
@@ -218,6 +230,46 @@ tree = MapAdapter(
                     "hints": {
                         "dimensions": [
                             [["mono-energy"], "primary"],
+                            [["aerotech-horiz"], "primary"],
+                        ],
+                    },
+                },
+            },
+        ),
+        "fly_scan": MapAdapter(
+            {
+                "streams": MapAdapter(
+                    {
+                        "It": MapAdapter(
+                            {},
+                            metadata={
+                                "data_keys": {
+                                    "It-net_count": {
+                                        "dtype": "number",
+                                    }
+                                },
+                                "hints": {},
+                            },
+                        ),
+                        "I0": MapAdapter(
+                            {},
+                            metadata={
+                                "data_keys": {
+                                    "I0-net_count": {
+                                        "dtype": "number",
+                                    }
+                                },
+                                "hints": {},
+                            },
+                        ),
+                    },
+                ),
+            },
+            metadata={
+                "start": {
+                    "uid": "fly_scan",
+                    "hints": {
+                        "dimensions": [
                             [["aerotech-horiz"], "primary"],
                         ],
                     },

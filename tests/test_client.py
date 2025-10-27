@@ -60,15 +60,51 @@ def md_to_json(metadata):
 
 
 @pytest.mark.asyncio
-async def test_data_keys(worker):
+async def test_data_signals(worker):
     uids = [
         "85573831-f4b4-4f64-b613-a6007bf03a8d",
         "7d1daf1d-60c7-4aa7-a668-d1cd97e5335f",
     ]
-    data_keys = await worker.data_keys(uids, "primary")
-    assert "I0-net_count" in data_keys
-    assert "It-mcs-scaler-channels-3-net_count" in data_keys
-    assert "seq_num" in data_keys
+    data_signals = await worker.data_signals(uids)
+    expected_signals = sorted(
+        [
+            "CdnI0_net_counts",
+            "CdnIPreKb_net_counts",
+            "CdnIt_net_counts",
+            "I0_net_counts",
+            "Ipre_KB_net_counts",
+            "Ipreslit_net_counts",
+            "It_net_counts",
+            "aerotech_vert",
+            "aerotech_horiz",
+            "It-mcs-scaler-channels-3-net_count",
+            "ge_8element",
+            "ge_8element-deadtime_factor",
+            "energy_energy",
+            "I0-net_count",
+            "seq_num",
+        ]
+    )
+    signal_names = sorted([sig.name for sig in data_signals])
+    assert signal_names == expected_signals
+    dimension_signal = {sig.name: sig for sig in data_signals}["aerotech_horiz"]
+    assert dimension_signal.is_scan_dimension
+
+
+@pytest.mark.asyncio
+async def test_data_signals_merged_streams(worker):
+    """Can we combine multiple streams into a single datakey."""
+    uids = ["fly_scan"]
+    data_signals = await worker.data_signals(uids)
+    expected_signals = sorted(
+        [
+            "I0-net_count",
+            "It-net_count",
+            "seq_num",
+        ]
+    )
+    signal_names = sorted([sig.name for sig in data_signals])
+    assert signal_names == expected_signals
 
 
 @pytest.mark.asyncio

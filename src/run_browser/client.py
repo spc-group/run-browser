@@ -1,8 +1,9 @@
 import asyncio
 import datetime as dt
 import logging
-from collections import ChainMap, OrderedDict
+from collections import OrderedDict
 from collections.abc import AsyncGenerator
+from dataclasses import dataclass
 from functools import partial
 from typing import Mapping, Sequence
 
@@ -15,10 +16,30 @@ from tiled.client.container import Container
 log = logging.getLogger(__name__)
 
 
+class Merged:
+    def __repr__(self):
+        return "<Merge streams>"
+
+    def __str__(self):
+        return "<Merged>"
+
+
+MERGED = Merged()
+
+
 def dimension_hints(start_doc, stream: str):
     """Get scan dimension information from a run's start doc."""
     dim_md = start_doc.get("hints", {}).get("dimensions", [])
     return [sig for signals, strm in dim_md if strm == stream for sig in signals]
+
+
+@dataclass(frozen=True, eq=True)
+class DataSignal:
+    name: str
+    stream: str
+    path_parts: Sequence[str]
+    is_scan_dimension: bool = False
+    is_hinted: bool = False
 
 
 class DatabaseWorker:
@@ -26,40 +47,88 @@ class DatabaseWorker:
     profile: str = ""
     catalog: Container
 
-    async def stream_names(self, uids: Sequence[str]):
-        runs = self.runs(uids)
+    async def _stream_names(self, run) -> list[str]:
+        return [key async for key in (await run["streams"]).keys()]
 
-        async def _stream_names(run):
-            return [key async for key in (await run["streams"]).keys()]
+    async def stream_names(self, uids: Sequence[str]) -> list[str]:
+        runs = self.runs(uids)
 
         # awaitables = [scan.stream_names() for scan in self.selected_runs]
         # all_streams = await asyncio.gather(*awaitables)
         async with asyncio.TaskGroup() as tg:
-            tasks = [tg.create_task(_stream_names(run)) async for run in runs.values()]
+            tasks = [
+                tg.create_task(self._stream_names(run)) async for run in runs.values()
+            ]
         # Flatten the lists
         all_streams = [task.result() for task in tasks]
         streams = [stream for streams in all_streams for stream in streams]
         return list(set(streams))
 
-    async def data_keys(self, uids: Sequence[str], stream: str):
-        async def get_data_key(run):
-            strm = await run[f"streams/{stream}"]
-            return strm.metadata.get("data_keys", {})
+    async def _data_signals(self, run, stream: str | Merged) -> list[DataSignal]:
+        """Get metadata about the available data signals for a single run.
 
-        runs = self.runs(uids)
-        async with asyncio.TaskGroup() as tg:
-            tasks = [tg.create_task(get_data_key(run)) async for run in runs.values()]
-        keys = ChainMap(*[task.result() for task in tasks])
-        keys.setdefault(
-            "seq_num",
-            {
-                "dtype": "number",
-                "dtype_numpy": "<i8",
-                "precision": 0,
-                "shape": [],
-            },
+        Parameters
+        ==========
+        run:
+          Tiled container for the target run.
+        stream:
+          Name of the stream to retrieve data keys for. If `None`
+          (default), all streams will be queried.
+
+        """
+
+        async def get_stream_data_signals(run, stream_name: str):
+            stream = await run[f"streams/{stream_name}"]
+            stream_md = stream.metadata.get("data_keys", {})
+            ihints, dhints = await self._get_hints(run, stream_name)
+            signals = [
+                DataSignal(
+                    name=name,
+                    path_parts=stream.path_parts,
+                    stream=stream_name,
+                    is_scan_dimension=name in ihints,
+                    is_hinted=name in dhints,
+                )
+                for name, data_key in stream_md.items()
+            ]
+            return signals
+
+        if stream is MERGED:
+            stream_names = await self._stream_names(run)
+        else:
+            stream_names = [stream]
+
+        data_signals = await asyncio.gather(
+            *[get_stream_data_signals(run, stream) for stream in stream_names]
         )
-        return keys
+        # Flatten the nested lists
+        return [sig for signals in data_signals for sig in signals]
+
+    async def data_signals(
+        self, uids: Sequence[str], stream: str | Merged = MERGED
+    ) -> list[DataSignal]:
+        """Get metadata about the available data signals for a set of runs.
+
+        Parameters
+        ==========
+        run:
+          Tiled container for the target run.
+        stream:
+          Name of the stream to retrieve data keys for. If `client.MERGED`
+          (default), all streams will be queried.
+
+        """
+        runs = self.runs(uids)
+
+        async with asyncio.TaskGroup() as tg:
+            tasks = [
+                tg.create_task(self._data_signals(run, stream))
+                async for run in runs.values()
+            ]
+        signals = [signal for task in tasks for signal in task.result()]
+        # Add a sequence num key since it is not included in the stream
+        signals.append(DataSignal(name="seq_num", stream=None, path_parts=[]))
+        return signals
 
     def runs(self, uids: Sequence[str]) -> Container:
         return self.catalog.search(queries.In("start.uid", uids))
@@ -222,6 +291,31 @@ class DatabaseWorker:
             all_runs.append(run_data)
         return all_runs
 
+    async def _get_hints(self, run, stream: str | Merged):
+        run_md = run.metadata
+        if stream is None:
+            raise RuntimeError("Don't pass `None` for merged streams, use `MERGED`.")
+        if stream is MERGED:
+            streams: list[str] = await self._stream_names(run)
+        else:
+            streams: list[str] = [stream]
+        # Get hints for the independent (X)
+        independent = dimension_hints(run_md.get("start", {}), stream=stream)
+
+        # Get hints for the dependent (Y) axes
+        async def get_stream_hints(run, stream):
+            stream_md = (await run[f"streams/{stream}"]).metadata
+            stream_md.get("hints", {})
+            return [
+                hint
+                for dev_hints in stream_md.get("hints", {}).values()
+                for hint in dev_hints.get("fields", [])
+            ]
+
+        aws = [get_stream_hints(run, stream) for stream in streams]
+        dependent = [sig for sigs in await asyncio.gather(*aws) for sig in sigs]
+        return independent, dependent
+
     async def hints(
         self, uids: Sequence[str], stream: str = "primary"
     ) -> tuple[set, set]:
@@ -233,21 +327,9 @@ class DatabaseWorker:
          while *dependent_hints* are those measured as a result.
         """
         runs = await asyncio.gather(*(self.catalog[uid] for uid in uids))
-
-        async def get_hints(run):
-            run_md = run.metadata
-            stream_md = (await run[f"streams/{stream}"]).metadata
-            # Get hints for the independent (X)
-            independent = dimension_hints(run_md.get("start", {}), stream=stream)
-            # Get hints for the dependent (Y) axes
-            dependent = [
-                hint
-                for dev_hints in stream_md.get("hints", {}).values()
-                for hint in dev_hints.get("fields", [])
-            ]
-            return independent, dependent
-
-        all_hints = await asyncio.gather(*(get_hints(run) for run in runs))
+        all_hints = await asyncio.gather(
+            *(self._get_hints(run, stream) for run in runs)
+        )
         # Flatten arrays
         ihints_: Sequence[str]
         dhints_: Sequence[str]

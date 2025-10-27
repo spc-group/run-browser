@@ -177,15 +177,15 @@ async def test_update_combobox_items(window):
 
 @pytest.mark.asyncio
 async def test_export_button_enabled(window):
-    assert not window.export_button.isEnabled()
+    assert not window.export_action.isEnabled()
     # Update the list with 1 run and see if the control gets enabled
     window.selected_runs = [{}]
-    window.update_export_button()
-    assert window.export_button.isEnabled()
+    window.update_export_action()
+    assert window.export_action.isEnabled()
     # Update the list with multiple runs and see if the control gets disabled
     window.selected_runs = [{}, {}]
-    window.update_export_button()
-    assert not window.export_button.isEnabled()
+    window.update_export_action()
+    assert not window.export_action.isEnabled()
 
 
 @pytest.mark.asyncio
@@ -198,7 +198,7 @@ async def test_export_button_clicked(window, mocker, qtbot):
         "application/x-nexus",
     ]
     window.selected_runs = [run]
-    window.update_export_button()
+    window.update_export_action()
     # Clicking the button should open a file dialog
     await window.export_runs()
     assert window.export_dialog.exec_.called
@@ -400,10 +400,48 @@ async def test_signal_options(window, mocker):
     # Check that we got the right signals in the right order
     await window.update_signal_widgets()
     expected_signals = [
+        "aerotech_horiz",
+        "aerotech_vert",
+        "CdnI0_net_counts",
+        "CdnIPreKb_net_counts",
+        "CdnIt_net_counts",
         "energy_energy",
         "ge_8element",
         "ge_8element-deadtime_factor",
         "I0-net_count",
+        "I0_net_counts",
+        "Ipre_KB_net_counts",
+        "Ipreslit_net_counts",
+        "It_net_counts",
+        "seq_num",
+    ]
+    combobox = window.ui.x_signal_combobox
+    signals = [combobox.itemText(idx) for idx in range(combobox.count())]
+    assert signals == expected_signals
+    combobox = window.ui.v_signal_combobox
+    signals = [combobox.itemText(idx) for idx in range(combobox.count())]
+    assert signals == expected_signals
+    combobox = window.ui.r_signal_combobox
+    signals = [combobox.itemText(idx) for idx in range(combobox.count())]
+    assert signals == expected_signals
+    # Make sure the signal object is stored with the combobox item
+    assert combobox.currentData().name in expected_signals
+
+
+@pytest.mark.asyncio
+async def test_merged_signal_options(window, mocker):
+    """If we merge streams, we should get extra signals"""
+    window.active_uids = mocker.MagicMock(return_value={"fly_scan"})
+    with block_signals(window.ui.stream_combobox, window.ui.use_hints_checkbox):
+        await window.update_streams()
+        window.ui.stream_combobox.setCurrentText("It")
+        window.ui.use_hints_checkbox.setChecked(False)
+        window.ui.merge_streams_checkbox.setChecked(True)
+    # Check that we got the right signals in the right order
+    await window.update_signal_widgets()
+    expected_signals = [
+        "I0-net_count (I0)",
+        "It-net_count",
         "seq_num",
     ]
     combobox = window.ui.x_signal_combobox

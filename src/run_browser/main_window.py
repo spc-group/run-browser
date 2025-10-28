@@ -23,7 +23,7 @@ from qtpy.QtWidgets import QApplication, QComboBox, QErrorMessage, QMainWindow
 from tiled.client import from_profile_async
 from tiled.profiles import get_default_profile_name, list_profiles
 
-from run_browser.client import MERGED, DatabaseWorker, DataSignal
+from run_browser.client import DatabaseWorker, DataSignal
 from run_browser.widgets import ExportDialog
 
 log = logging.getLogger(__name__)
@@ -105,7 +105,6 @@ class RunBrowserMainWindow(QMainWindow):
     def __init__(self, *args, merge_streams: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
         self.load_ui(merge_streams=merge_streams)
-        self.selected_runs = []
         self._running_db_tasks = {}
         self._busy_hinters = Counter()
         self.reset_default_filters()
@@ -339,7 +338,7 @@ class RunBrowserMainWindow(QMainWindow):
 
     def _set_combobox_signals(self, combobox: QComboBox, signals: Sequence[DataSignal]):
         # If we're using merged streams, we want to include the stream at the end
-        active_stream = self.stream
+        active_stream = self.ui.stream_combobox.currentText()
         # Now go through and add the options
         old_value = combobox.currentText()
         signals = sorted(signals, key=lambda sig: sig.name.lower())
@@ -436,10 +435,20 @@ class RunBrowserMainWindow(QMainWindow):
                 self.ui.stream_combobox.setCurrentText("primary")
         await self.update_signal_widgets()
 
-    @property
-    def stream(self):
-        current_text = self.ui.stream_combobox.currentText()
-        return current_text or "primary"
+    async def active_streams(self):
+        """Return names of the current "active" streams.
+
+        If merged streams are enabled, then this will be everything
+        except the baseline. Otherwise it will be a length-1 list with
+        the current selected stream.
+
+        """
+        if self.ui.merge_streams_checkbox.isChecked():
+            streams = await self.db.stream_names(self.active_uids())
+            streams = [stream for stream in streams if stream != "baseline"]
+        else:
+            streams = [self.ui.stream_combobox.currentText()]
+        return streams
 
     def update_export_action(self):
         # We can only export one scan at a time from here
@@ -518,17 +527,16 @@ class RunBrowserMainWindow(QMainWindow):
 
     async def data_signals(self, uids=None) -> tuple[dict, set[str], set[str]]:
         """Get valid keys and hints for the selected UIDs."""
-        # Prepare the arguments
-        stream = self.ui.stream_combobox.currentText()
-        if self.ui.merge_streams_checkbox.isChecked():
-            stream = MERGED
+        streams = await self.active_streams()
         if uids is None:
             uids = self.active_uids()
         # Do the database hit
         with self.busy_hints(run_widgets=True, run_table=False, filter_widgets=False):
             data_keys, hints = await asyncio.gather(
-                self.db_task(self.db.data_signals(uids, stream), "update data signals"),
-                self.db_task(self.db.hints(uids, stream), "update data hints"),
+                self.db_task(
+                    self.db.data_signals(uids, streams), "update data signals"
+                ),
+                self.db_task(self.db.hints(uids, streams), "update data hints"),
             )
         independent_hints, dependent_hints = hints
         return data_keys, set(independent_hints), set(dependent_hints)
@@ -708,32 +716,26 @@ class RunBrowserMainWindow(QMainWindow):
         self.ui.frameset_tab.clear()
         self.ui.spectra_tab.clear()
         # Figure out what we're plotting
-        stream = self.ui.stream_combobox.currentText()
+        streams = await self.active_streams()
         selected_uid = self.selected_uid()
         uids = self.active_uids()
         xsig = self.x_signal_combobox.currentText()
         ysig = self.v_signal_combobox.currentText()
         r_enabled = self.r_operator_combobox.currentText() != ""
         rsig = self.r_signal_combobox.currentText() if r_enabled else None
-        if stream == "":
-            datasets = {}
-            log.info("Not loading datasets for empty stream.")
-        else:
-            # Need to include independent hints for maps
-            _, ihints, _ = await self.data_signals()
-            with self.busy_hints(
-                run_widgets=True, run_table=False, filter_widgets=False
-            ):
-                datasets = await self.db_task(
-                    self.db.datasets(
-                        uids, stream, variables=[xsig, ysig, rsig, *ihints]
-                    ),
-                    "update_datasets",
-                )
-                # # Keep for easier debugging
-                # datasets = await self.db.datasets(
-                #     uids, stream, xcolumn=xsig, ycolumn=ysig, rcolumn=rsig
-                # )
+        # Need to include independent hints for maps
+        _, ihints, _ = await self.data_signals()
+        with self.busy_hints(run_widgets=True, run_table=False, filter_widgets=False):
+            datasets = await self.db_task(
+                self.db.datasets(
+                    uids, streams=streams, variables=[xsig, ysig, rsig, *ihints]
+                ),
+                "update_datasets",
+            )
+            # # Keep for easier debugging
+            # datasets = await self.db.datasets(
+            #     uids, stream, xcolumn=xsig, ycolumn=ysig, rcolumn=rsig
+            # )
         # 1D line plots
         if len(datasets) > 0:
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.LINE, True)
@@ -769,11 +771,11 @@ class RunBrowserMainWindow(QMainWindow):
         # Always disable until the spectra view is ready
         self.ui.detail_tabwidget.setTabEnabled(self.Tabs.SPECTRA, False)
 
-    def active_uids(self) -> set[str]:
+    def active_uids(self) -> list[str]:
         """UIDS of runs that are checked or selected in the run list."""
         uids = self.checked_uids()
         if (selected := self.selected_uid()) is not None:
-            uids.add(selected)
+            uids.append(selected)
         return uids
 
     def selected_uid(self) -> str | None:
@@ -785,7 +787,7 @@ class RunBrowserMainWindow(QMainWindow):
         uid = selected[0].siblingAtColumn(uid_col).data()
         return uid
 
-    def checked_uids(self) -> set[str]:
+    def checked_uids(self) -> list[str]:
         """The UIDs of the runs currently checked in the list."""
         # Get UID's from the selection
         uid_col = self._run_col_names.index("UID")
@@ -796,7 +798,7 @@ class RunBrowserMainWindow(QMainWindow):
             for row_idx in range(self.runs_model.rowCount())
             if model.item(row_idx, cbox_col).checkState() == Qt.Checked
         ]
-        return set(uids)
+        return list(dict.fromkeys(uids))
 
     def filters(self, *args):
         new_filters = {

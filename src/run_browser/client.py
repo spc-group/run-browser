@@ -27,16 +27,16 @@ class Merged:
 MERGED = Merged()
 
 
-def dimension_hints(start_doc, stream: str):
+def dimension_hints(start_doc, streams: Sequence[str]):
     """Get scan dimension information from a run's start doc."""
     dim_md = start_doc.get("hints", {}).get("dimensions", [])
-    return [sig for signals, strm in dim_md if strm == stream for sig in signals]
+    return [sig for signals, strm in dim_md if strm in streams for sig in signals]
 
 
 @dataclass(frozen=True, eq=True)
 class DataSignal:
     name: str
-    stream: str
+    stream: str | None
     path_parts: Sequence[str]
     is_scan_dimension: bool = False
     is_hinted: bool = False
@@ -64,23 +64,22 @@ class DatabaseWorker:
         streams = [stream for streams in all_streams for stream in streams]
         return list(set(streams))
 
-    async def _data_signals(self, run, stream: str | Merged) -> list[DataSignal]:
+    async def _data_signals(self, run, streams: Sequence[str]) -> list[DataSignal]:
         """Get metadata about the available data signals for a single run.
 
         Parameters
         ==========
         run:
           Tiled container for the target run.
-        stream:
-          Name of the stream to retrieve data keys for. If `None`
-          (default), all streams will be queried.
+        streams:
+          Names of the streams to retrieve data keys for.
 
         """
 
         async def get_stream_data_signals(run, stream_name: str):
             stream = await run[f"streams/{stream_name}"]
             stream_md = stream.metadata.get("data_keys", {})
-            ihints, dhints = await self._get_hints(run, stream_name)
+            ihints, dhints = await self._get_hints(run, streams=[stream_name])
             signals = [
                 DataSignal(
                     name=name,
@@ -93,19 +92,14 @@ class DatabaseWorker:
             ]
             return signals
 
-        if stream is MERGED:
-            stream_names = await self._stream_names(run)
-        else:
-            stream_names = [stream]
-
         data_signals = await asyncio.gather(
-            *[get_stream_data_signals(run, stream) for stream in stream_names]
+            *[get_stream_data_signals(run, stream) for stream in streams]
         )
         # Flatten the nested lists
         return [sig for signals in data_signals for sig in signals]
 
     async def data_signals(
-        self, uids: Sequence[str], stream: str | Merged = MERGED
+        self, uids: Sequence[str], streams: Sequence[str]
     ) -> list[DataSignal]:
         """Get metadata about the available data signals for a set of runs.
 
@@ -113,16 +107,15 @@ class DatabaseWorker:
         ==========
         run:
           Tiled container for the target run.
-        stream:
-          Name of the stream to retrieve data keys for. If `client.MERGED`
-          (default), all streams will be queried.
+        streams:
+          Names of the streams to retrieve data keys for.
 
         """
         runs = self.runs(uids)
 
         async with asyncio.TaskGroup() as tg:
             tasks = [
-                tg.create_task(self._data_signals(run, stream))
+                tg.create_task(self._data_signals(run, streams))
                 async for run in runs.values()
             ]
         signals = [signal for task in tasks for signal in task.result()]
@@ -157,7 +150,7 @@ class DatabaseWorker:
     async def datasets(
         self,
         uids: Sequence[str],
-        stream: str,
+        streams: Sequence[str],
         variables: Sequence[str],
     ) -> dict[str, xr.DataArray]:
         """Return data for selected runs as {uid: xarray.Dataset}."""
@@ -165,9 +158,9 @@ class DatabaseWorker:
             return {}
         runs = self.runs(uids)
 
-        async def get_xarray(run):
+        async def get_xarray(run, stream: str):
             start_doc = run.metadata.get("start", {})
-            dimensions = dimension_hints(start_doc, stream=stream)
+            dimensions = dimension_hints(start_doc, streams=[stream])
             node = await run[f"streams/{stream}"]
             if not hasattr(node, "read"):
                 log.warning(f"Node {node} cannot be read.")
@@ -180,7 +173,9 @@ class DatabaseWorker:
 
         async with asyncio.TaskGroup() as tg:
             tasks = {
-                uid: tg.create_task(get_xarray(run)) async for uid, run in runs.items()
+                uid: tg.create_task(get_xarray(run, stream))
+                for stream in streams
+                async for uid, run in runs.items()
             }
         results = {uid: task.result() for uid, task in tasks.items()}
         return results
@@ -291,16 +286,10 @@ class DatabaseWorker:
             all_runs.append(run_data)
         return all_runs
 
-    async def _get_hints(self, run, stream: str | Merged):
+    async def _get_hints(self, run, streams: Sequence[str]):
         run_md = run.metadata
-        if stream is None:
-            raise RuntimeError("Don't pass `None` for merged streams, use `MERGED`.")
-        if stream is MERGED:
-            streams: list[str] = await self._stream_names(run)
-        else:
-            streams: list[str] = [stream]
         # Get hints for the independent (X)
-        independent = dimension_hints(run_md.get("start", {}), stream=stream)
+        independent = dimension_hints(run_md.get("start", {}), streams=streams)
 
         # Get hints for the dependent (Y) axes
         async def get_stream_hints(run, stream):
@@ -317,7 +306,7 @@ class DatabaseWorker:
         return independent, dependent
 
     async def hints(
-        self, uids: Sequence[str], stream: str = "primary"
+        self, uids: Sequence[str], streams: Sequence[str] = "primary"
     ) -> tuple[set, set]:
         """Get hints for this stream, as two lists.
 
@@ -328,7 +317,7 @@ class DatabaseWorker:
         """
         runs = await asyncio.gather(*(self.catalog[uid] for uid in uids))
         all_hints = await asyncio.gather(
-            *(self._get_hints(run, stream) for run in runs)
+            *(self._get_hints(run, streams=streams) for run in runs)
         )
         # Flatten arrays
         ihints_: Sequence[str]

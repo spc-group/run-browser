@@ -23,7 +23,11 @@ stream_metadata_urls = re.compile(
 def run_metadata_api(httpx_mock):
     def respond_with_metadata(request: httpx.Request):
         url = str(request.url)
-        catalog, uid = run_metadata_urls.match(url).groups()
+        match = run_metadata_urls.match(url)
+        if match is None:
+            raise ValueError(f"Could not match URL {request.url}")
+        else:
+            catalog, uid = match.groups()
         md = {
             "data": {
                 "attributes": {
@@ -65,7 +69,7 @@ async def test_data_signals(worker):
         "85573831-f4b4-4f64-b613-a6007bf03a8d",
         "7d1daf1d-60c7-4aa7-a668-d1cd97e5335f",
     ]
-    data_signals = await worker.data_signals(uids)
+    data_signals = await worker.data_signals(uids, streams=["primary"])
     expected_signals = sorted(
         [
             "CdnI0_net_counts",
@@ -95,7 +99,7 @@ async def test_data_signals(worker):
 async def test_data_signals_merged_streams(worker):
     """Can we combine multiple streams into a single datakey."""
     uids = ["fly_scan"]
-    data_signals = await worker.data_signals(uids)
+    data_signals = await worker.data_signals(uids, streams=["It", "I0"])
     expected_signals = sorted(
         [
             "I0-net_count",
@@ -134,7 +138,7 @@ async def test_datasets(worker, tiled_client):
     uids = ["xarray_run"]
     arrays = await worker.datasets(
         uids,
-        stream="primary",
+        streams=["primary"],
         variables=["mono-energy", "It-net_count", "I0-net_count"],
     )
     # Check the results
@@ -188,7 +192,7 @@ async def test_hints(worker):
         "85573831-f4b4-4f64-b613-a6007bf03a8d",
         "7d1daf1d-60c7-4aa7-a668-d1cd97e5335f",
     ]
-    ihints, dhints = await worker.hints(uids, "primary")
+    ihints, dhints = await worker.hints(uids, ["primary"])
     assert ihints == {"aerotech_vert", "aerotech_horiz"}
 
 

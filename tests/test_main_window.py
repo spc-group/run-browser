@@ -85,7 +85,7 @@ async def test_load_runs(window):
 async def test_active_uids(window):
     await window.load_runs()
     # No rows at first
-    assert window.active_uids() == set()
+    assert window.active_uids() == []
     # Check a row
     row, col = (0, 0)
     window.ui.runs_model.item(row, col).setCheckState(Qt.Checked)

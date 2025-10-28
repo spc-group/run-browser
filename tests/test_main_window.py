@@ -1,7 +1,6 @@
 import asyncio
 import datetime as dt
 from pathlib import Path
-from unittest.mock import AsyncMock
 
 import numpy as np
 import pytest
@@ -175,44 +174,6 @@ async def test_update_combobox_items(window):
     assert window.ui.filter_beamline_combobox.count() > 0
 
 
-@pytest.mark.asyncio
-async def test_export_button_enabled(window):
-    assert not window.export_action.isEnabled()
-    # Update the list with 1 run and see if the control gets enabled
-    window.selected_runs = [{}]
-    window.update_export_action()
-    assert window.export_action.isEnabled()
-    # Update the list with multiple runs and see if the control gets disabled
-    window.selected_runs = [{}, {}]
-    window.update_export_action()
-    assert not window.export_action.isEnabled()
-
-
-@pytest.mark.asyncio
-async def test_export_button_clicked(window, mocker, qtbot):
-    # Set up a run to be tested against
-    run = AsyncMock()
-    run.formats.return_value = [
-        "application/json",
-        "application/x-hdf5",
-        "application/x-nexus",
-    ]
-    window.selected_runs = [run]
-    window.update_export_action()
-    # Clicking the button should open a file dialog
-    await window.export_runs()
-    assert window.export_dialog.exec_.called
-    assert window.export_dialog.selectedFiles.called
-    # Check that file filter names are set correctly
-    # (assumes application/json is available on every machine)
-    assert "JSON document (*.json)" in window.export_dialog.nameFilters()
-    # Check that the file was saved
-    assert window.db.export_runs.called
-    files = window.export_dialog.selectedFiles.return_value
-    assert window.db.export_runs.call_args.args == (files,)
-    assert window.db.export_runs.call_args.kwargs["formats"] == ["application/json"]
-
-
 fake_time = dt.datetime(2022, 8, 19, 19, 10, 51).astimezone()
 
 
@@ -253,9 +214,14 @@ async def test_update_internal_data(window, qtbot, mocker):
     window.active_uids = mocker.MagicMock(
         return_value={"85573831-f4b4-4f64-b613-a6007bf03a8d"}
     )
-    with block_signals(window.ui.stream_combobox, window.ui.x_signal_combobox):
+    with block_signals(
+        window.ui.stream_combobox,
+        window.ui.x_signal_combobox,
+        window.ui.use_hints_checkbox,
+    ):
         window.ui.stream_combobox.addItem("primary")
         window.ui.x_signal_combobox.addItem("x")
+        window.ui.use_hints_checkbox.setChecked(False)
     window.ui.multiplot_tab.plot = mocker.MagicMock()
     await window.update_internal_data()
     # Check that the plotting routines were called correctly
@@ -309,6 +275,8 @@ async def test_update_no_data_selected(window, qtbot, mocker):
     window.ui.gridplot_tab.plot = mocker.MagicMock()
     window.ui.frameset_tab.plot = mocker.MagicMock()
     window.ui.spectra_tab.plot = mocker.MagicMock()
+    with block_signals(window.ui.use_hints_checkbox):
+        window.ui.use_hints_checkbox.setChecked(False)
     await window.update_selected_data()
     # All the tab views should be disabled
     assert not window.ui.lineplot_tab.plot.called

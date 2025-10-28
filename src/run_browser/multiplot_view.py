@@ -52,6 +52,7 @@ class MultiplotView(QtWidgets.QWidget):
         """Remove all existing multiplot items from the view."""
         self.ui.plot_widget.clear()
         self._multiplot_items = {}
+        self.ui.plot_widget.setMinimumHeight(0)
 
     def multiplot_items(self, n_cols: int = 3) -> Generator[PlotItem, Any, None]:
         """Generate plot multiples, creating new ones on the fly.
@@ -63,6 +64,7 @@ class MultiplotView(QtWidgets.QWidget):
         """
         view = self.ui.plot_widget
         item0 = None
+        row_height = 200
         for idx in count():
             row = int(idx / n_cols)
             col = idx % n_cols
@@ -76,7 +78,5 @@ class MultiplotView(QtWidgets.QWidget):
             else:
                 new_item.setXLink(item0)
             # Resize the viewing area to fit the contents
-            width = view.width()
-            plot_width = width / n_cols
-            view.setFixedHeight(1200)
+            view.setMinimumHeight(max(view.minimumHeight(), row * row_height))
             yield new_item

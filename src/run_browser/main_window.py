@@ -300,6 +300,7 @@ class RunBrowserMainWindow(QMainWindow):
         self.error_dialog = QErrorMessage(parent=self)
         # Respond to signal selection widgets
         self.ui.use_hints_checkbox.stateChanged.connect(self.update_signal_widgets)
+        self.ui.use_hints_checkbox.stateChanged.connect(self.update_internal_data)
         self.ui.x_signal_combobox.currentTextChanged.connect(self.update_internal_data)
         self.ui.x_signal_combobox.currentTextChanged.connect(self.update_selected_data)
         self.ui.v_signal_combobox.currentTextChanged.connect(self.update_selected_data)
@@ -599,6 +600,8 @@ class RunBrowserMainWindow(QMainWindow):
         stream = self.ui.stream_combobox.currentText()
         uids = self.active_uids()
         x_signal = self.ui.x_signal_combobox.currentText()
+        use_hints = self.ui.use_hints_checkbox.isChecked()
+        _, hints = await self.db.hints(uids, streams=[stream])
         if stream == "":
             dataframes = {}
             log.info("Not loading dataframes for empty stream.")
@@ -608,6 +611,9 @@ class RunBrowserMainWindow(QMainWindow):
             ):
                 dataframes = await self.db.dataframes(uids, stream)
 
+        def should_plot(col):
+            return (col != x_signal) and (col in hints or not use_hints)
+
         # Convert to standard format datasets
         def to_dataset(df):
             coords = {x_signal: df[x_signal].values}
@@ -615,7 +621,7 @@ class RunBrowserMainWindow(QMainWindow):
                 {
                     col: xr.DataArray(df[col].values, coords=coords)
                     for col in df.columns
-                    if col != x_signal
+                    if should_plot(col)
                 }
             )
 

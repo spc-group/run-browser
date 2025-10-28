@@ -8,9 +8,8 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import Mapping, Optional, Sequence
+from typing import Mapping, Sequence
 
-import httpx
 import numpy as np
 import pandas as pd
 import qtawesome as qta
@@ -20,12 +19,11 @@ from qasync import asyncSlot
 from qtpy import uic
 from qtpy.QtCore import QDateTime, Qt
 from qtpy.QtGui import QIcon, QStandardItem, QStandardItemModel
-from qtpy.QtWidgets import QApplication, QComboBox, QErrorMessage, QMainWindow
+from qtpy.QtWidgets import QApplication, QComboBox, QMainWindow
 from tiled.client import from_profile_async
 from tiled.profiles import get_default_profile_name, list_profiles
 
 from run_browser.client import DatabaseWorker, DataSignal
-from run_browser.widgets import ExportDialog
 
 log = logging.getLogger(__name__)
 
@@ -102,8 +100,6 @@ class RunBrowserMainWindow(QMainWindow):
     ]
 
     _running_db_tasks: Mapping
-
-    export_dialog: Optional[ExportDialog] = None
 
     # Counter for keeping track of UI hints for long DB hits
     _busy_hinters: Counter
@@ -281,9 +277,6 @@ class RunBrowserMainWindow(QMainWindow):
         self.ui.run_tableview.selectionModel().selectionChanged.connect(
             self.update_all_views
         )
-        self.ui.run_tableview.selectionModel().selectionChanged.connect(
-            self.update_export_action
-        )
         self.ui.refresh_runs_button.setIcon(qta.icon("fa6s.arrows-rotate"))
         self.ui.refresh_runs_button.clicked.connect(self.reload_runs)
         self.ui.reset_filters_button.clicked.connect(self.reset_default_filters)
@@ -294,10 +287,6 @@ class RunBrowserMainWindow(QMainWindow):
         # Respond to controls for the current run
         self.ui.reload_plots_button.clicked.connect(self.update_all_views)
         self.ui.stream_combobox.currentTextChanged.connect(self.update_signal_widgets)
-        # Create a new export dialog for saving files
-        self.ui.export_action.triggered.connect(self.export_runs)
-        self.export_dialog = ExportDialog(parent=self)
-        self.error_dialog = QErrorMessage(parent=self)
         # Respond to signal selection widgets
         self.ui.use_hints_checkbox.stateChanged.connect(self.update_signal_widgets)
         self.ui.use_hints_checkbox.stateChanged.connect(self.update_internal_data)
@@ -465,57 +454,6 @@ class RunBrowserMainWindow(QMainWindow):
         else:
             streams = [self.ui.stream_combobox.currentText()]
         return streams
-
-    def update_export_action(self):
-        # We can only export one scan at a time from here
-        # should_enable = self.selected_runs is not None and len(self.selected_runs) == 1
-        should_enable = False
-        self.ui.export_action.setEnabled(should_enable)
-
-    @asyncSlot()
-    async def export_runs(self):
-        """Export the selected runs to user-specified filenames.
-
-        Shows the user a file dialog with accepted types based on the
-        accepted tiled export formats.
-
-        """
-        dialog = self.export_dialog
-        # Determine default mimetypes
-        mimetypes = await self.selected_runs[0].formats()
-        filenames = dialog.ask(mimetypes=mimetypes)
-        mimetype = dialog.selectedMimeTypeFilter()
-        formats = [mimetype] * len(filenames)
-        try:
-            await self.db_task(
-                self.db.export_runs(filenames, formats=formats), "export"
-            )
-        except httpx.ConnectError as exc:
-            log.exception(exc)
-            msg = "Could not connect to Tiled.<br /><br />"
-            msg += f"{exc.request.url}"
-            self.error_dialog.showMessage(msg, "connection error")
-        except httpx.HTTPStatusError as exc:
-            log.exception(exc)
-            response = exc.response
-            if 400 <= exc.response.status_code < 500:
-                msg = "Scan export failed. Firefly could not complete request."
-            elif 500 <= exc.response.status_code < 600:
-                msg = "Scan export failed.  See Tiled server logs for details."
-            else:
-                # This shouldn't be possible, only 400 and 500 codes are errors
-                msg = "Scan export failed with unknown status code."
-            msg += f"<br /><br />Status code: {exc.response.status_code}"
-            if response.headers["Content-Type"] == "application/json":
-                detail = response.json().get("detail", "")
-            else:
-                # This can happen when we get an error from a proxy,
-                # such as a 502, which serves an HTML error page.
-                # Use the stock "reason phrase" for the error code
-                # instead of dumping HTML into the terminal.
-                detail = response.reason_phrase
-            msg += f"<br /><br />{detail}"
-            self.error_dialog.showMessage(msg, str(response.status_code))
 
     @asyncSlot()
     async def update_metadata(self, *args) -> dict[str, dict]:

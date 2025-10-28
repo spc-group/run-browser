@@ -8,22 +8,12 @@ import pytest_asyncio
 import time_machine
 import xarray as xr
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import QFileDialog
 
 from run_browser.main_window import RunBrowserMainWindow, apply_reference, block_signals
 
 
 @pytest_asyncio.fixture()
 async def window(qtbot, mocker, tiled_client):
-    mocker.patch(
-        "run_browser.widgets.ExportDialog.exec_",
-        return_value=QFileDialog.Accepted,
-    )
-    mocker.patch(
-        "run_browser.widgets.ExportDialog.selectedFiles",
-        return_value=["/net/s255data/export/test_file.nx"],
-    )
-    mocker.patch("run_browser.client.DatabaseWorker.export_runs")
     mocker.patch(
         "run_browser.main_window.list_profiles",
         return_value={

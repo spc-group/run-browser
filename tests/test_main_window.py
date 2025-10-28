@@ -11,7 +11,7 @@ import xarray as xr
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QFileDialog
 
-from run_browser.main_window import RunBrowserMainWindow, block_signals
+from run_browser.main_window import RunBrowserMainWindow, apply_reference, block_signals
 
 
 @pytest_asyncio.fixture()
@@ -546,6 +546,28 @@ def test_prepare_1d_data(window):
     xr.testing.assert_allclose(new_data, expected)
     assert new_data.attrs["data_label"] == "∇(ln((It-net_count ÷ I0-net_count)⁻¹))"
     assert new_data.attrs["coord_label"] == "mono-energy"
+
+
+reference_shapes = [
+    ((51,), (51,), (51,)),
+    ((51,), (51, 4, 256), (51, 4, 256)),
+    ((51, 4, 256), (51,), (51, 4, 256)),
+    ((51, 4, 256), (51, 4), (51, 4, 256)),
+    ((51, 4, 256), (51, 2, 128), ValueError),
+]
+
+
+@pytest.mark.parametrize("a_shape,b_shape,result_shape", reference_shapes)
+def test_apply_reference_shapes(a_shape, b_shape, result_shape):
+    """Check that the reference corrections work with differently-shaped data."""
+    a = np.linspace(0, 100, num=np.prod(a_shape)).reshape(a_shape)
+    b = np.linspace(0, 100, num=np.prod(b_shape)).reshape(b_shape)
+    if isinstance(result_shape, type):
+        with pytest.raises(result_shape):
+            result = apply_reference(a, b, np.divide)
+    else:
+        result = apply_reference(a, b, np.divide)
+        assert result.shape == result_shape
 
 
 def test_prepare_grid_data(window):

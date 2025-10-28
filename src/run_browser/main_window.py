@@ -4,6 +4,7 @@ import enum
 import logging
 import warnings
 from collections import Counter
+from collections.abc import Callable
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
@@ -46,6 +47,20 @@ reference_operators = {
     "×": np.multiply,
     "÷": np.divide,
 }
+
+
+def apply_reference(
+    a: NDArray, b: NDArray, operator: Callable[[NDArray, NDArray], NDArray]
+) -> NDArray:
+    """Apply a reference correction to the data."""
+    # Determine shape corrections if needed
+    if a.ndim > b.ndim:
+        new_shape = [*b.shape, *([1] * (a.ndim - b.ndim))]
+        b = np.reshape(b, new_shape)
+    elif a.ndim < b.ndim:
+        new_shape = [*a.shape, *([1] * (b.ndim - a.ndim))]
+        a = np.reshape(a, new_shape)
+    return operator(a, b)
 
 
 def cancellable(fn):
@@ -452,7 +467,8 @@ class RunBrowserMainWindow(QMainWindow):
 
     def update_export_action(self):
         # We can only export one scan at a time from here
-        should_enable = self.selected_runs is not None and len(self.selected_runs) == 1
+        # should_enable = self.selected_runs is not None and len(self.selected_runs) == 1
+        should_enable = False
         self.ui.export_action.setEnabled(should_enable)
 
     @asyncSlot()
@@ -627,7 +643,9 @@ class RunBrowserMainWindow(QMainWindow):
         """
         x_signal = self.ui.x_signal_combobox.currentText()
         y_signal = self.ui.v_signal_combobox.currentText()
-        apply_reference = reference_operators[self.ui.r_operator_combobox.currentText()]
+        reference_operator = reference_operators[
+            self.ui.r_operator_combobox.currentText()
+        ]
         r_signal = self.ui.r_signal_combobox.currentText()
         x_label, y_label = self.axis_labels()
         data_vars = {}
@@ -641,7 +659,7 @@ class RunBrowserMainWindow(QMainWindow):
                 log.info(f"Could not load {exc} for {label}")
                 continue
             if reference_selected:
-                arr = apply_reference(arr, ref_data)
+                arr = apply_reference(arr, ref_data, operator=reference_operator)
             arr = self.reduce_nd_array(arr)
             # Apply plotting modifiers (logarithm, gradient, etc)
 

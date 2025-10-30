@@ -18,7 +18,12 @@ dependencies = [
     "numpy",
     "pandas",
     "xarray",
-    "pyqtgraph",
+
+    # Need this fork of pyqtgraph until this PR/issue are fixed:
+    #   https://github.com/pyqtgraph/pyqtgraph/pull/3406
+    #   https://github.com/pyqtgraph/pyqtgraph/issues/3405
+    # "pyqtgraph",
+    "pyqtgraph@git+https://github.com/spc-group/pyqtgraph.git@5853bcbc333c596d7c5b13c73ecdc8a1940c1625",
     "PySide6",
     "qtpy",
     "qtawesome",

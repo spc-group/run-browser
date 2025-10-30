@@ -2259,14 +2259,11 @@ wheels = [
 
 [[package]]
 name = "pyqtgraph"
-version = "0.13.7"
-source = { registry = "https://pypi.org/simple" }
+version = "0.14.0.dev0"
+source = { git = "https://github.com/spc-group/pyqtgraph.git?rev=5853bcbc333c596d7c5b13c73ecdc8a1940c1625#5853bcbc333c596d7c5b13c73ecdc8a1940c1625" }
 dependencies = [
+    { name = "colorama" },
     { name = "numpy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/33/d9/b62d5cddb3caa6e5145664bee5ed90223dee23ca887ed3ee479f2609e40a/pyqtgraph-0.13.7.tar.gz", hash = "sha256:64f84f1935c6996d0e09b1ee66fe478a7771e3ca6f3aaa05f00f6e068321d9e3", size = 2343380, upload-time = "2024-04-29T02:18:58.467Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7b/34/5702b3b7cafe99be1d94b42f100e8cc5e6957b761fcb1cf5f72d492851da/pyqtgraph-0.13.7-py3-none-any.whl", hash = "sha256:7754edbefb6c367fa0dfb176e2d0610da3ada20aa7a5318516c74af5fb72bf7a", size = 1925473, upload-time = "2024-04-29T02:18:56.206Z" },
 ]
 
 [[package]]
@@ -2757,7 +2754,7 @@ requires-dist = [
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
-    { name = "pyqtgraph" },
+    { name = "pyqtgraph", git = "https://github.com/spc-group/pyqtgraph.git?rev=5853bcbc333c596d7c5b13c73ecdc8a1940c1625" },
     { name = "pyside6" },
     { name = "qasync" },
     { name = "qtawesome" },

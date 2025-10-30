@@ -71,23 +71,19 @@ class FramesetView(QtWidgets.QWidget):
         self.clear()
         # Determine how to plot the time series values
         tvals = list(array.coords.values())[0]
-        # Super hacky fix to plot arrays with a 1D dimension
-        arr = array.values
-        if arr.shape[1] == 1:
-            arr = np.concat([arr, np.zeros(shape=arr.shape)], axis=1)
         # Plot the images
-        self.ui.frame_view.setImage(arr, xvals=tvals.values)
+        arr = array.values
+        self.ui.frame_view.setImage(
+            arr, xvals=tvals.values, axes={"t": 0, "y": 1, "x": 2}
+        )
 
     def apply_roi(self, arr: NDArray) -> NDArray:
         im_view = self.ui.frame_view
         if not im_view.ui.roiBtn.isChecked():
             return arr
         roi = im_view.roi
-        new_arr = roi.getArrayRegion(data=arr, img=im_view.imageItem, axes=(1, 2))
-        # Super hacky fix to plot arrays with a 1D dimension
-        if new_arr.shape[1] == 1:
-            new_arr = np.concat([new_arr, np.zeros(shape=new_arr.shape)], axis=1)
-        return new_arr
+        arr = roi.getArrayRegion(data=arr, img=im_view.imageItem, axes=(1, 2))
+        return arr
 
     def clear(self):
         im_plot = self.ui.frame_view

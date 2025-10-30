@@ -38,7 +38,7 @@
           <number>21</number>
          </property>
          <property name="orientation">
-          <enum>Qt::Horizontal</enum>
+          <enum>Qt::Orientation::Horizontal</enum>
          </property>
          <property name="invertedAppearance">
           <bool>false</bool>
@@ -47,14 +47,14 @@
           <bool>false</bool>
          </property>
          <property name="tickPosition">
-          <enum>QSlider::NoTicks</enum>
+          <enum>QSlider::TickPosition::NoTicks</enum>
          </property>
         </widget>
        </item>
       </layout>
      </item>
      <item>
-      <widget class="PlotWidget" name="spectra_view"/>
+      <widget class="PlotWidget" name="plot_widget"/>
      </item>
     </layout>
    </item>

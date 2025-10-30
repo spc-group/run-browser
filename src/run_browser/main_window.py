@@ -113,9 +113,12 @@ class RunBrowserMainWindow(QMainWindow):
         SPECTRA = 5
         VOLUME = 6
 
-    def __init__(self, *args, merge_streams: bool = True, **kwargs):
+    def __init__(
+        self, *args, merge_streams: bool = True, plot_spectra: bool = True, **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.load_ui(merge_streams=merge_streams)
+        self._plot_spectra = plot_spectra
         self._running_db_tasks = {}
         self._busy_hinters = Counter()
         self.reset_default_filters()
@@ -722,16 +725,17 @@ class RunBrowserMainWindow(QMainWindow):
         # Volume-based data views
         if selected_dataset is not None and selected_dataset[ysig].ndim == 3:
             volume_data = self.prepare_volume_dataset(datasets[selected_uid])
-            self.ui.detail_tabwidget.setTabEnabled(self.Tabs.FRAMES, True)
             self.ui.frameset_tab.plot(volume_data)
-            self.ui.detail_tabwidget.setTabEnabled(self.Tabs.SPECTRA, True)
             self.ui.spectra_tab.plot(volume_data)
+            self.ui.detail_tabwidget.setTabEnabled(self.Tabs.FRAMES, True)
+            self.ui.detail_tabwidget.setTabEnabled(
+                self.Tabs.SPECTRA, self._plot_spectra
+            )
         else:
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.FRAMES, False)
+            self.ui.detail_tabwidget.setTabEnabled(self.Tabs.SPECTRA, False)
             self.ui.frameset_tab.clear()
             self.ui.spectra_tab.clear()
-        # Always disable until the spectra view is ready
-        self.ui.detail_tabwidget.setTabEnabled(self.Tabs.SPECTRA, False)
 
     def active_uids(self) -> list[str]:
         """UIDS of runs that are checked or selected in the run list."""

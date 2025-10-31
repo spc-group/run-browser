@@ -23,6 +23,27 @@ class FramesetImageView(pg.ImageView):
         self.timeLine.setPen((255, 255, 0, 200), width=5)
         self.timeLine.setHoverPen("r", width=5)
         self.setColorMap(pg.colormap.get("viridis"))
+        # Add tabs so we can switch between image and spectra plot views
+        self.tab_widget = QtWidgets.QTabWidget()
+        self.tab_widget.setObjectName("tab_widget")
+        # # Images tabs
+        self.image_page = QtWidgets.QWidget()
+        self.image_page.setObjectName("image_page")
+        self.image_layout = QtWidgets.QVBoxLayout(self.image_page)
+        self.image_layout.setObjectName("image_layout")
+        self.image_layout.setContentsMargins(0, 0, 0, 0)
+        self.tab_widget.addTab(self.image_page, "&Images")
+        # Spectra tab
+        self.spectra_page = QtWidgets.QWidget()
+        self.spectra_layout = QtWidgets.QVBoxLayout(self.spectra_page)
+        self.spectra_layout.setContentsMargins(0, 0, 0, 0)
+        self.spectra_view = pg.PlotWidget()
+        self.spectra_layout.addWidget(self.spectra_view)
+        self.tab_widget.addTab(self.spectra_page, "&Spectra")
+        # Restructure the layout with the new tab widget
+        self.image_view = self.ui.gridLayout.takeAt(0).widget()
+        self.image_layout.addWidget(self.image_view)
+        self.ui.gridLayout.addWidget(self.tab_widget, 0, 0, 2, 1)
 
 
 class FramesetView(QtWidgets.QWidget):

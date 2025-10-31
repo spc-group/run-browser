@@ -1,10 +1,14 @@
 import argparse
 import asyncio
+import logging
 import sys
 
+import httpx
 from qasync import QApplication, QEventLoop
 
 from run_browser.main_window import RunBrowserMainWindow
+
+log = logging.getLogger("run_browser")
 
 
 def main(argv=None):
@@ -25,6 +29,8 @@ def main(argv=None):
 
     args, extra_args = parser.parse_known_args(sys.argv)
 
+    logging.basicConfig(level=logging.INFO)
+
     app = QApplication(extra_args)
 
     app_close_event = asyncio.Event()
@@ -36,7 +42,10 @@ def main(argv=None):
     main_window.show()
 
     async def start(window, event):
-        await window.change_catalog()
+        try:
+            await window.change_catalog()
+        except httpx.ConnectTimeout as ex:
+            log.exception(ex)
         await event.wait()
 
     # for 3.11 or older use qasync.run instead of asyncio.run

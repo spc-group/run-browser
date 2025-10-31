@@ -198,7 +198,7 @@
                 <rect>
                  <x>0</x>
                  <y>0</y>
-                 <width>283</width>
+                 <width>278</width>
                  <height>445</height>
                 </rect>
                </property>
@@ -921,7 +921,7 @@
            </sizepolicy>
           </property>
           <property name="currentIndex">
-           <number>5</number>
+           <number>4</number>
           </property>
           <widget class="MetadataView" name="metadata_tab">
            <attribute name="title">
@@ -958,11 +958,6 @@
            </property>
            <attribute name="title">
             <string>Frames</string>
-           </attribute>
-          </widget>
-          <widget class="SpectraView" name="spectra_tab">
-           <attribute name="title">
-            <string>Spectra</string>
            </attribute>
           </widget>
          </widget>
@@ -1046,12 +1041,6 @@
    <class>FramesetView</class>
    <extends>QWidget</extends>
    <header>run_browser.frameset_view</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
-   <class>SpectraView</class>
-   <extends>QWidget</extends>
-   <header>run_browser.spectra_view</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

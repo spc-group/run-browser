@@ -3,7 +3,7 @@ import pytest
 import xarray as xr
 from pyqtgraph import ImageView
 
-from run_browser.frameset_view import FramesetView
+from run_browser.frameset_view import FramesetImageView, FramesetView
 
 
 @pytest.fixture()
@@ -43,3 +43,11 @@ def test_apply_roi(view):
     new_arr = view.apply_roi(arr)
     assert new_arr is not arr
     assert new_arr.shape[0] == 16
+
+
+def test_spectra_plot_widget():
+    """Check that the imageview has both an imageplot and a spectra plot."""
+    view = FramesetImageView()
+    print(view.ui.gridLayout)
+    tab_widget = view.tab_widget
+    assert view.ui.gridLayout.itemAtPosition(0, 0).widget() is tab_widget

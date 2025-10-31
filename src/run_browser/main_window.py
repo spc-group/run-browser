@@ -123,6 +123,8 @@ class RunBrowserMainWindow(QMainWindow):
         self._busy_hinters = Counter()
         self.reset_default_filters()
         self.db = DatabaseWorker()
+        if not plot_spectra:
+            self.frameset_tab.frame_view.tab_widget.removeTab(1)
 
     def show_message(self, message: str, delay: int | None = None):
         log.info(message)
@@ -679,7 +681,6 @@ class RunBrowserMainWindow(QMainWindow):
         self.ui.lineplot_tab.clear()
         self.ui.gridplot_tab.clear()
         self.ui.frameset_tab.clear()
-        self.ui.spectra_tab.clear()
         # Figure out what we're plotting
         streams = await self.active_streams()
         selected_uid = self.selected_uid()
@@ -726,16 +727,10 @@ class RunBrowserMainWindow(QMainWindow):
         if selected_dataset is not None and selected_dataset[ysig].ndim == 3:
             volume_data = self.prepare_volume_dataset(datasets[selected_uid])
             self.ui.frameset_tab.plot(volume_data)
-            self.ui.spectra_tab.plot(volume_data)
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.FRAMES, True)
-            self.ui.detail_tabwidget.setTabEnabled(
-                self.Tabs.SPECTRA, self._plot_spectra
-            )
         else:
             self.ui.detail_tabwidget.setTabEnabled(self.Tabs.FRAMES, False)
-            self.ui.detail_tabwidget.setTabEnabled(self.Tabs.SPECTRA, False)
             self.ui.frameset_tab.clear()
-            self.ui.spectra_tab.clear()
 
     def active_uids(self) -> list[str]:
         """UIDS of runs that are checked or selected in the run list."""

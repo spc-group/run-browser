@@ -242,7 +242,6 @@ async def test_update_selected_data(window, qtbot, mocker):
     window.ui.lineplot_tab.plot = mocker.MagicMock()
     window.ui.gridplot_tab.plot = mocker.MagicMock()
     window.ui.frameset_tab.plot = mocker.MagicMock()
-    window.ui.spectra_tab.plot = mocker.MagicMock()
     await window.update_selected_data()
     # Line plotting was called
     assert window.ui.lineplot_tab.plot.called
@@ -264,7 +263,6 @@ async def test_update_no_data_selected(window, qtbot, mocker):
     window.ui.lineplot_tab.plot = mocker.MagicMock()
     window.ui.gridplot_tab.plot = mocker.MagicMock()
     window.ui.frameset_tab.plot = mocker.MagicMock()
-    window.ui.spectra_tab.plot = mocker.MagicMock()
     with block_signals(window.ui.use_hints_checkbox):
         window.ui.use_hints_checkbox.setChecked(False)
     await window.update_selected_data()
@@ -275,8 +273,6 @@ async def test_update_no_data_selected(window, qtbot, mocker):
     # assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.GRID)
     assert not window.ui.frameset_tab.plot.called
     assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.FRAMES)
-    assert not window.ui.spectra_tab.plot.called
-    assert not window.ui.detail_tabwidget.isTabEnabled(window.Tabs.SPECTRA)
 
 
 @pytest.mark.asyncio
@@ -304,7 +300,6 @@ async def test_update_non_grid(window, qtbot, mocker):
     window.ui.lineplot_tab.plot = mocker.MagicMock()
     window.ui.gridplot_tab.plot = mocker.MagicMock()
     window.ui.frameset_tab.plot = mocker.MagicMock()
-    window.ui.spectra_tab.plot = mocker.MagicMock()
     await window.update_selected_data()
     # Line plotting was called
     assert window.ui.lineplot_tab.plot.called

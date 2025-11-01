@@ -7,12 +7,14 @@ import pandas as pd
 import pyqtgraph as pg
 import qtawesome as qta
 import xarray as xr
+from matplotlib.colors import TABLEAU_COLORS
 from numpy.typing import NDArray
 from qtpy import QtCore, QtWidgets, uic
 
 axes = namedtuple("axes", ("z", "y", "x"))
 
 log = logging.getLogger(__name__)
+COLORS = list(TABLEAU_COLORS.values())
 
 
 class FramesetImageView(pg.ImageView):
@@ -44,6 +46,44 @@ class FramesetImageView(pg.ImageView):
         self.image_view = self.ui.gridLayout.takeAt(0).widget()
         self.image_layout.addWidget(self.image_view)
         self.ui.gridLayout.addWidget(self.tab_widget, 0, 0, 2, 1)
+        # Link the y axes
+        self.view.setXLink(self.spectra_view.getPlotItem())
+        self.roi.removeHandle(1)  # remove the rotation handle
+
+    def updateImage(self, *args, **kwargs):
+        ## Redraw image on screen
+        super().updateImage(*args, **kwargs)
+        self.update_spectra()
+
+    def update_spectra(self):
+        if self.image is None:
+            return
+
+        image = self.getProcessedImage()
+
+        # Transpose image into order expected by ImageItem
+        if self.imageItem.axisOrder == "col-major":
+            axorder = ["t", "x", "y", "c"]
+        else:
+            axorder = ["t", "y", "x", "c"]
+        axorder = [self.axes[ax] for ax in axorder if self.axes[ax] is not None]
+        image = image.transpose(axorder)
+        print(f"{self.imageItem.axisOrder=}")
+        # Select time index
+        if self.axes["t"] is not None:
+            self.ui.roiPlot.show()
+            image = image[self.currentIndex]
+        # Do spectra plotting
+        spectra = image
+        plot_item = self.spectra_view.getPlotItem()
+        # Update existing items
+        for data_item, ydata in zip(plot_item.dataItems, spectra):
+            data_item.setData(ydata)
+        # Plot new items
+        new_rows = spectra[len(plot_item.dataItems) :]
+        for row_idx, ydata in enumerate(new_rows):
+            color = COLORS[row_idx % len(COLORS)]
+            plot_item.plot(ydata, pen=color, name=str(row_idx), clear=False)
 
 
 class FramesetView(QtWidgets.QWidget):
@@ -90,13 +130,12 @@ class FramesetView(QtWidgets.QWidget):
         """Plot a dataset as a stack of frames."""
         # Start with a clear plot
         self.clear()
+        view = self.ui.frame_view
         # Determine how to plot the time series values
         tvals = list(array.coords.values())[0]
-        # Plot the images
-        arr = array.values
-        self.ui.frame_view.setImage(
-            arr, xvals=tvals.values, axes={"t": 0, "y": 1, "x": 2}
-        )
+        # Do image plotting
+        print(f"view: {array.values.shape}")
+        view.setImage(array.values, xvals=tvals.values, axes={"t": 0, "y": 1, "x": 2})
 
     def apply_roi(self, arr: NDArray) -> NDArray:
         im_view = self.ui.frame_view

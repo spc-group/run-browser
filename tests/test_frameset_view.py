@@ -18,7 +18,7 @@ def test_load_ui(view):
     assert isinstance(view.ui.frame_view, ImageView)
 
 
-def test_plot(view):
+def test_plot_frames(view):
     ds = xr.DataArray(
         np.random.rand(16, 8, 4),
         coords={"frame": range(16), "row": range(8), "column": range(4)},
@@ -26,6 +26,19 @@ def test_plot(view):
     view.plot(ds)
     im_plot = view.ui.frame_view
     assert np.array_equal(im_plot.image, ds.values)
+
+
+def test_plot_spectra(view):
+    ds = xr.DataArray(
+        np.random.rand(16, 8, 4),
+        coords={"frame": range(16), "row": range(8), "column": range(4)},
+    )
+    view.plot(ds)
+    plot_item = view.ui.frame_view.spectra_view.getPlotItem()
+    assert len(plot_item.dataItems) == 8
+    # Plot again to make sure they don't duplicate plots
+    view.plot(ds)
+    assert len(plot_item.dataItems) == 8
 
 
 def test_apply_no_roi(view):

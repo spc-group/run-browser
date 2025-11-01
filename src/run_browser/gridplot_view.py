@@ -2,7 +2,6 @@ import logging
 from pathlib import Path
 
 import numpy as np
-import pyqtgraph
 import qtawesome as qta
 import xarray as xr
 from matplotlib.colors import TABLEAU_COLORS
@@ -13,9 +12,6 @@ from scipy.interpolate import griddata
 
 log = logging.getLogger(__name__)
 colors = list(TABLEAU_COLORS.values())
-
-
-pyqtgraph.setConfigOption("imageAxisOrder", "row-major")
 
 
 class GridImageView(ImageView):

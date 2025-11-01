@@ -4,6 +4,7 @@ import xarray as xr
 from pyqtgraph import ImageView
 
 from run_browser.frameset_view import FramesetImageView, FramesetView
+from run_browser.testing import block_signals
 
 
 @pytest.fixture()
@@ -61,6 +62,35 @@ def test_apply_roi(view):
 def test_spectra_plot_widget():
     """Check that the imageview has both an imageplot and a spectra plot."""
     view = FramesetImageView()
-    print(view.ui.gridLayout)
     tab_widget = view.tab_widget
     assert view.ui.gridLayout.itemAtPosition(0, 0).widget() is tab_widget
+
+
+def test_show_spectra_roi():
+    view = FramesetImageView()
+    assert not view.spectra_region.isVisible()
+    # Check the ROI button
+    with block_signals(view.ui.roiBtn):
+        view.ui.roiBtn.setChecked(True)
+    view.roiClicked()
+    assert view.spectra_region.isVisible()
+    # Uncheck the button again
+    with block_signals(view.ui.roiBtn):
+        view.ui.roiBtn.setChecked(False)
+    view.roiClicked()
+    assert not view.spectra_region.isVisible()
+
+
+def test_link_spectra_roi():
+    view = FramesetImageView()
+    view.roiChanged()
+    assert view.spectra_region.getRegion() == (0, 10)
+
+
+def test_link_image_roi():
+    view = FramesetImageView()
+    with block_signals(view.spectra_region):
+        view.spectra_region.setRegion((5, 20))
+    view.update_image_roi()
+    assert tuple(view.roi.size()) == (15.0, 10.0)
+    assert tuple(view.roi.pos()) == (5.0, 0.0)

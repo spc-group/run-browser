@@ -18,6 +18,8 @@ COLORS = list(TABLEAU_COLORS.values())
 
 
 class FramesetImageView(pg.ImageView):
+    spectra_region: pg.LinearRegionItem
+
     def __init__(self, *args, view=None, **kwargs):
         if view is None:
             view = pg.PlotItem()
@@ -28,7 +30,7 @@ class FramesetImageView(pg.ImageView):
         # Add tabs so we can switch between image and spectra plot views
         self.tab_widget = QtWidgets.QTabWidget()
         self.tab_widget.setObjectName("tab_widget")
-        # # Images tabs
+        # Images tabs
         self.image_page = QtWidgets.QWidget()
         self.image_page.setObjectName("image_page")
         self.image_layout = QtWidgets.QVBoxLayout(self.image_page)
@@ -42,6 +44,10 @@ class FramesetImageView(pg.ImageView):
         self.spectra_view = pg.PlotWidget()
         self.spectra_layout.addWidget(self.spectra_view)
         self.tab_widget.addTab(self.spectra_page, "&Spectra")
+        self.spectra_region = pg.LinearRegionItem()
+        self.spectra_region.hide()
+        self.spectra_region.sigRegionChanged.connect(self.update_image_roi)
+        self.spectra_view.addItem(self.spectra_region)
         # Restructure the layout with the new tab widget
         self.image_view = self.ui.gridLayout.takeAt(0).widget()
         self.image_layout.addWidget(self.image_view)
@@ -49,6 +55,35 @@ class FramesetImageView(pg.ImageView):
         # Link the y axes
         self.view.setXLink(self.spectra_view.getPlotItem())
         self.roi.removeHandle(1)  # remove the rotation handle
+
+    @QtCore.Slot()
+    def roiChanged(self):
+        super().roiChanged()
+        # Update the spectra ROI when the frame ROI changes
+        width, _ = self.roi.size()
+        x, y = self.roi.pos()
+        new_region = (x, x + width)
+        self.spectra_region.setRegion(new_region)
+
+    @QtCore.Slot()
+    def update_image_roi(self):
+        """Sets the image ROI based on the spectra region."""
+        # Update the spectra ROI when the frame ROI changes
+        lower, upper = self.spectra_region.getRegion()
+        new_pos = (lower, self.roi.pos()[1])
+        new_size = (upper - lower, self.roi.size()[1])
+        self.roi.setPos(new_pos)
+        self.roi.setSize(new_size)
+
+    @QtCore.Slot()
+    def roiClicked(self):
+        super().roiClicked()
+        if not hasattr(self, "spectra_region"):
+            return
+        if self.ui.roiBtn.isChecked():
+            self.spectra_region.show()
+        else:
+            self.spectra_region.hide()
 
     def updateImage(self, *args, **kwargs):
         ## Redraw image on screen
@@ -68,7 +103,6 @@ class FramesetImageView(pg.ImageView):
             axorder = ["t", "y", "x", "c"]
         axorder = [self.axes[ax] for ax in axorder if self.axes[ax] is not None]
         image = image.transpose(axorder)
-        print(f"{self.imageItem.axisOrder=}")
         # Select time index
         if self.axes["t"] is not None:
             self.ui.roiPlot.show()
@@ -84,6 +118,10 @@ class FramesetImageView(pg.ImageView):
         for row_idx, ydata in enumerate(new_rows):
             color = COLORS[row_idx % len(COLORS)]
             plot_item.plot(ydata, pen=color, name=str(row_idx), clear=False)
+        # Removed unused items
+        old_rows = plot_item.dataItems[spectra.shape[0] :]
+        for row in old_rows:
+            plot_item.removeItem(row)
 
 
 class FramesetView(QtWidgets.QWidget):
@@ -128,13 +166,10 @@ class FramesetView(QtWidgets.QWidget):
     @QtCore.Slot()
     def plot(self, array: xr.DataArray):
         """Plot a dataset as a stack of frames."""
-        # Start with a clear plot
-        self.clear()
         view = self.ui.frame_view
         # Determine how to plot the time series values
         tvals = list(array.coords.values())[0]
         # Do image plotting
-        print(f"view: {array.values.shape}")
         view.setImage(array.values, xvals=tvals.values, axes={"t": 0, "y": 1, "x": 2})
 
     def apply_roi(self, arr: NDArray) -> NDArray:

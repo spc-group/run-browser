@@ -24,6 +24,7 @@ from tiled.client import from_profile_async
 from tiled.profiles import get_default_profile_name, list_profiles
 
 from run_browser.client import DatabaseWorker, DataSignal
+from run_browser.testing import block_signals
 
 log = logging.getLogger(__name__)
 
@@ -70,18 +71,6 @@ def cancellable(fn):
             log.warning(f"Cancelled task {fn}")
 
     return inner
-
-
-@contextmanager
-def block_signals(*widgets):
-    """Disable Qt signals so tests can be set up."""
-    for widget in widgets:
-        widget.blockSignals(True)
-    try:
-        yield
-    finally:
-        for widget in widgets:
-            widget.blockSignals(False)
 
 
 class RunBrowserMainWindow(QMainWindow):

@@ -328,6 +328,7 @@ class RunBrowserMainWindow(QMainWindow):
             self.ui.r_signal_combobox,
         ]
         for combobox, new_signals in zip(comboboxes, [xsigs, vsigs, vsigs]):
+            print(f"{use_hints=}, {xsigs=}, {vsigs=}")
             self._set_combobox_signals(combobox, new_signals)
 
     def _set_combobox_signals(self, combobox: QComboBox, signals: Sequence[DataSignal]):

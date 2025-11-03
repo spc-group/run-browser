@@ -391,12 +391,7 @@ async def test_merged_signal_options(window, mocker):
         window.ui.use_hints_checkbox.setChecked(False)
         window.ui.merge_streams_checkbox.setChecked(True)
     # Check that we got the right signals in the right order
-    with block_signals(
-        window.ui.x_signal_combobox,
-        window.ui.v_signal_combobox,
-        window.ui.r_signal_combobox,
-    ):
-        await window.update_signal_widgets()
+    await window.update_signal_widgets()
     expected_signals = [
         "I0-net_count (I0)",
         "It-net_count",

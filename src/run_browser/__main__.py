@@ -4,6 +4,7 @@ import logging
 import sys
 
 import httpx
+import stamina
 from qasync import QApplication, QEventLoop
 
 from run_browser.main_window import RunBrowserMainWindow
@@ -21,10 +22,25 @@ def main(argv=None):
         action="store_true",
         help="Enable experimental support for plotting signals from different streams.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debugging mode. Disables stamin retries.",
+    )
+    parser.add_argument(
+        "-v", "--verbose", action="count", help="Increase verbosity level.", default=0
+    )
 
     args, extra_args = parser.parse_known_args(sys.argv)
 
-    logging.basicConfig(level=logging.INFO)
+    if args.debug:
+        stamina.set_active(False)
+
+    # Set up logging
+    log_levels = [logging.WARNING, logging.INFO, logging.DEBUG]
+    max_verbosity = len(log_levels) - 1
+    log_level = log_levels[min(args.verbose, max_verbosity)]
+    logging.basicConfig(level=log_level)
 
     app = QApplication(extra_args)
 

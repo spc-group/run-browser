@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Mapping, Sequence
 
+import httpx
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -131,6 +132,7 @@ class DatabaseWorker:
         runs = self.runs(uids)
 
         async def get_data_frame(run):
+            print(run.uri)
             try:
                 node = await run[f"streams/{stream}/internal"]
             except KeyError as exc:
@@ -228,9 +230,12 @@ class DatabaseWorker:
             "start.beamline",
         ]
         # Get fields from the database
-        for field_name, values in (await self.catalog.distinct(*target_fields))[
-            "metadata"
-        ].items():
+        try:
+            distinct = await self.catalog.distinct(*target_fields)
+        except httpx.ReadTimeout as exc:
+            log.exception(exc)
+            return
+        for field_name, values in (distinct)["metadata"].items():
             yield field_name, [info["value"] for info in values]
 
     async def load_all_runs(self, filters: Mapping = {}):

@@ -102,18 +102,13 @@ class RunBrowserMainWindow(QMainWindow):
         SPECTRA = 5
         VOLUME = 6
 
-    def __init__(
-        self, *args, merge_streams: bool = True, plot_spectra: bool = True, **kwargs
-    ):
+    def __init__(self, *args, merge_streams: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
         self.load_ui(merge_streams=merge_streams)
-        self._plot_spectra = plot_spectra
         self._running_db_tasks = {}
         self._busy_hinters = Counter()
         self.reset_default_filters()
         self.db = DatabaseWorker()
-        if not plot_spectra:
-            self.frameset_tab.frame_view.tab_widget.removeTab(1)
 
     def show_message(self, message: str, delay: int | None = None):
         log.info(message)

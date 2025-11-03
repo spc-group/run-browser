@@ -21,11 +21,6 @@ def main(argv=None):
         action="store_true",
         help="Enable experimental support for plotting signals from different streams.",
     )
-    parser.add_argument(
-        "--plot-spectra",
-        action="store_true",
-        help="Enable experimental support for plotting area detectors as spectra.",
-    )
 
     args, extra_args = parser.parse_known_args(sys.argv)
 
@@ -37,7 +32,7 @@ def main(argv=None):
     app.aboutToQuit.connect(app_close_event.set)
 
     main_window = RunBrowserMainWindow(
-        merge_streams=args.merge_streams, plot_spectra=args.plot_spectra
+        merge_streams=args.merge_streams,
     )
     main_window.show()
 

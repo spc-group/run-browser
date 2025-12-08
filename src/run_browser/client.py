@@ -47,9 +47,17 @@ class DatabaseWorker:
     selected_runs: Sequence = []
     profile: str = ""
     catalog: Container
+    stream_prefix: str = ""
+
+    def __init__(self, stream_prefix: str):
+        self.stream_prefix = stream_prefix
+        super().__init__()
 
     async def _stream_names(self, run) -> list[str]:
-        return [key async for key in (await run["streams"]).keys()]
+        streams_node = run
+        if self.stream_prefix != "":
+            streams_node = await run[self.stream_prefix]
+        return [key async for key in streams_node.keys()]
 
     async def stream_names(self, uids: Sequence[str]) -> list[str]:
         runs = self.runs(uids)
@@ -78,7 +86,7 @@ class DatabaseWorker:
         """
 
         async def get_stream_data_signals(run, stream_name: str):
-            stream = await run[f"streams/{stream_name}"]
+            stream = await run[f"{self.stream_prefix}{stream_name}"]
             stream_md = stream.metadata.get("data_keys", {})
             ihints, dhints = await self._get_hints(run, streams=[stream_name])
             signals = [
@@ -132,9 +140,8 @@ class DatabaseWorker:
         runs = self.runs(uids)
 
         async def get_data_frame(run):
-            print(run.uri)
             try:
-                node = await run[f"streams/{stream}/internal"]
+                node = await run[f"{self.stream_prefix}{stream}/internal"]
             except KeyError as exc:
                 # log.(exc)
                 return xr.Dataset({})
@@ -163,7 +170,7 @@ class DatabaseWorker:
         async def get_xarray(run, stream: str):
             start_doc = run.metadata.get("start", {})
             dimensions = dimension_hints(start_doc, streams=[stream])
-            node = await run[f"streams/{stream}"]
+            node = await run[f"{self.stream_prefix}{stream}"]
             if not hasattr(node, "read"):
                 log.warning(f"Node {node} cannot be read.")
                 ds = xr.Dataset({})
@@ -298,7 +305,7 @@ class DatabaseWorker:
 
         # Get hints for the dependent (Y) axes
         async def get_stream_hints(run, stream):
-            stream_md = (await run[f"streams/{stream}"]).metadata
+            stream_md = (await run[f"{self.stream_prefix}{stream}"]).metadata
             stream_md.get("hints", {})
             return [
                 hint

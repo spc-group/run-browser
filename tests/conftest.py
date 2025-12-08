@@ -19,57 +19,53 @@ tree = MapAdapter(
     {
         "85573831-f4b4-4f64-b613-a6007bf03a8d": MapAdapter(
             {
-                "streams": MapAdapter(
+                "baseline": MapAdapter({}),
+                "primary": MapAdapter(
                     {
-                        "baseline": MapAdapter({}),
-                        "primary": MapAdapter(
-                            {
-                                "internal": DataFrameAdapter.from_pandas(
-                                    pd.DataFrame(
-                                        {
-                                            "x": 1 * np.ones(10),
-                                            "y": 2 * np.ones(10),
-                                            "z": 3 * np.ones(10),
-                                        }
-                                    ),
-                                    npartitions=3,
-                                ),
-                            },
-                            metadata={
-                                "data_keys": {
-                                    "I0-net_count": {
-                                        "dtype": "number",
-                                    },
-                                    "ge_8element": {},
-                                    "ge_8element-deadtime_factor": {},
-                                    "energy_energy": {},
-                                    "aerotech_horiz": {},
-                                    "aerotech_vert": {},
-                                    "CdnI0_net_counts": {},
-                                    "CdnIPreKb_net_counts": {},
-                                    "CdnIt_net_counts": {},
-                                    "I0_net_counts": {},
-                                    "Ipre_KB_net_counts": {},
-                                    "Ipreslit_net_counts": {},
-                                    "I0_net_counts": {},
-                                    "Ipre_KB_net_counts": {},
-                                    "Ipreslit_net_counts": {},
-                                    "It_net_counts": {},
-                                },
-                                "hints": {
-                                    "Ipreslit": {"fields": ["Ipreslit_net_counts"]},
-                                    "CdnIPreKb": {"fields": ["CdnIPreKb_net_counts"]},
-                                    "I0": {"fields": ["I0_net_counts"]},
-                                    "CdnIt": {"fields": ["CdnIt_net_counts"]},
-                                    "aerotech_vert": {"fields": ["aerotech_vert"]},
-                                    "aerotech_horiz": {"fields": ["aerotech_horiz"]},
-                                    "Ipre_KB": {"fields": ["Ipre_KB_net_counts"]},
-                                    "CdnI0": {"fields": ["CdnI0_net_counts"]},
-                                    "It": {"fields": ["It_net_counts"]},
-                                },
-                            },
+                        "internal": DataFrameAdapter.from_pandas(
+                            pd.DataFrame(
+                                {
+                                    "x": 1 * np.ones(10),
+                                    "y": 2 * np.ones(10),
+                                    "z": 3 * np.ones(10),
+                                }
+                            ),
+                            npartitions=3,
                         ),
-                    }
+                    },
+                    metadata={
+                        "data_keys": {
+                            "I0-net_count": {
+                                "dtype": "number",
+                            },
+                            "ge_8element": {},
+                            "ge_8element-deadtime_factor": {},
+                            "energy_energy": {},
+                            "aerotech_horiz": {},
+                            "aerotech_vert": {},
+                            "CdnI0_net_counts": {},
+                            "CdnIPreKb_net_counts": {},
+                            "CdnIt_net_counts": {},
+                            "I0_net_counts": {},
+                            "Ipre_KB_net_counts": {},
+                            "Ipreslit_net_counts": {},
+                            "I0_net_counts": {},
+                            "Ipre_KB_net_counts": {},
+                            "Ipreslit_net_counts": {},
+                            "It_net_counts": {},
+                        },
+                        "hints": {
+                            "Ipreslit": {"fields": ["Ipreslit_net_counts"]},
+                            "CdnIPreKb": {"fields": ["CdnIPreKb_net_counts"]},
+                            "I0": {"fields": ["I0_net_counts"]},
+                            "CdnIt": {"fields": ["CdnIt_net_counts"]},
+                            "aerotech_vert": {"fields": ["aerotech_vert"]},
+                            "aerotech_horiz": {"fields": ["aerotech_horiz"]},
+                            "Ipre_KB": {"fields": ["Ipre_KB_net_counts"]},
+                            "CdnI0": {"fields": ["CdnI0_net_counts"]},
+                            "It": {"fields": ["It_net_counts"]},
+                        },
+                    },
                 ),
             },
             metadata={
@@ -96,41 +92,37 @@ tree = MapAdapter(
         ),
         "7d1daf1d-60c7-4aa7-a668-d1cd97e5335f": MapAdapter(
             {
-                "streams": MapAdapter(
+                "primary": MapAdapter(
                     {
-                        "primary": MapAdapter(
-                            {
-                                "internal": DataFrameAdapter.from_pandas(
-                                    pd.DataFrame(
-                                        {
-                                            "x": 1 * np.ones(10),
-                                            "y": 2 * np.ones(10),
-                                            "z": 3 * np.ones(10),
-                                        }
-                                    ),
-                                    npartitions=3,
-                                ),
-                            },
-                            metadata={
-                                "data_keys": {
-                                    "It-mcs-scaler-channels-3-net_count": {
-                                        "dtype": "number",
-                                    }
-                                },
-                                "hints": {
-                                    "Ipreslit": {"fields": ["Ipreslit_net_counts"]},
-                                    "CdnIPreKb": {"fields": ["CdnIPreKb_net_counts"]},
-                                    "I0": {"fields": ["I0_net_counts"]},
-                                    "CdnIt": {"fields": ["CdnIt_net_counts"]},
-                                    "aerotech_vert": {"fields": ["aerotech_vert"]},
-                                    "aerotech_horiz": {"fields": ["aerotech_horiz"]},
-                                    "Ipre_KB": {"fields": ["Ipre_KB_net_counts"]},
-                                    "CdnI0": {"fields": ["CdnI0_net_counts"]},
-                                    "It": {"fields": ["It_net_counts"]},
-                                },
-                            },
+                        "internal": DataFrameAdapter.from_pandas(
+                            pd.DataFrame(
+                                {
+                                    "x": 1 * np.ones(10),
+                                    "y": 2 * np.ones(10),
+                                    "z": 3 * np.ones(10),
+                                }
+                            ),
+                            npartitions=3,
                         ),
-                    }
+                    },
+                    metadata={
+                        "data_keys": {
+                            "It-mcs-scaler-channels-3-net_count": {
+                                "dtype": "number",
+                            }
+                        },
+                        "hints": {
+                            "Ipreslit": {"fields": ["Ipreslit_net_counts"]},
+                            "CdnIPreKb": {"fields": ["CdnIPreKb_net_counts"]},
+                            "I0": {"fields": ["I0_net_counts"]},
+                            "CdnIt": {"fields": ["CdnIt_net_counts"]},
+                            "aerotech_vert": {"fields": ["aerotech_vert"]},
+                            "aerotech_horiz": {"fields": ["aerotech_horiz"]},
+                            "Ipre_KB": {"fields": ["Ipre_KB_net_counts"]},
+                            "CdnI0": {"fields": ["CdnI0_net_counts"]},
+                            "It": {"fields": ["It_net_counts"]},
+                        },
+                    },
                 ),
             },
             metadata={
@@ -152,32 +144,28 @@ tree = MapAdapter(
         ),
         "xarray_run": MapAdapter(
             {
-                "streams": MapAdapter(
-                    {
-                        "primary": DatasetAdapter.from_dataset(
-                            xr.Dataset(
-                                {
-                                    "I0-net_count": (
-                                        "mono-energy",
-                                        [200, 300, 250, 350],
-                                    ),
-                                    "It-net_count": (
-                                        "mono-energy",
-                                        [200, 300, 250, 350],
-                                    ),
-                                    "other_signal": (
-                                        "mono-energy",
-                                        [10, 122, 13345, 159832],
-                                    ),
-                                    "mono-energy": ("mono-energy", [0, 1, 2, 3]),
-                                    "aerotech-horiz": (
-                                        "mono-energy",
-                                        [-50, -20, 10, 40],
-                                    ),
-                                }
+                "primary": DatasetAdapter.from_dataset(
+                    xr.Dataset(
+                        {
+                            "I0-net_count": (
+                                "mono-energy",
+                                [200, 300, 250, 350],
                             ),
-                        ),
-                    },
+                            "It-net_count": (
+                                "mono-energy",
+                                [200, 300, 250, 350],
+                            ),
+                            "other_signal": (
+                                "mono-energy",
+                                [10, 122, 13345, 159832],
+                            ),
+                            "mono-energy": ("mono-energy", [0, 1, 2, 3]),
+                            "aerotech-horiz": (
+                                "mono-energy",
+                                [-50, -20, 10, 40],
+                            ),
+                        }
+                    ),
                 ),
             },
             metadata={
@@ -195,32 +183,28 @@ tree = MapAdapter(
         ),
         "xarray_line_scan": MapAdapter(
             {
-                "streams": MapAdapter(
-                    {
-                        "primary": DatasetAdapter.from_dataset(
-                            xr.Dataset(
-                                {
-                                    "I0-net_count": (
-                                        "mono-energy",
-                                        [200, 300, 250, 350],
-                                    ),
-                                    "It-net_count": (
-                                        "mono-energy",
-                                        [200, 300, 250, 350],
-                                    ),
-                                    "other_signal": (
-                                        "mono-energy",
-                                        [10, 122, 13345, 159832],
-                                    ),
-                                    "mono-energy": ("mono-energy", [0, 1, 2, 3]),
-                                    "aerotech-horiz": (
-                                        "mono-energy",
-                                        [-50, -20, 10, 40],
-                                    ),
-                                }
+                "primary": DatasetAdapter.from_dataset(
+                    xr.Dataset(
+                        {
+                            "I0-net_count": (
+                                "mono-energy",
+                                [200, 300, 250, 350],
                             ),
-                        ),
-                    },
+                            "It-net_count": (
+                                "mono-energy",
+                                [200, 300, 250, 350],
+                            ),
+                            "other_signal": (
+                                "mono-energy",
+                                [10, 122, 13345, 159832],
+                            ),
+                            "mono-energy": ("mono-energy", [0, 1, 2, 3]),
+                            "aerotech-horiz": (
+                                "mono-energy",
+                                [-50, -20, 10, 40],
+                            ),
+                        }
+                    ),
                 ),
             },
             metadata={
@@ -238,30 +222,26 @@ tree = MapAdapter(
         ),
         "fly_scan": MapAdapter(
             {
-                "streams": MapAdapter(
-                    {
-                        "It": MapAdapter(
-                            {},
-                            metadata={
-                                "data_keys": {
-                                    "It-net_count": {
-                                        "dtype": "number",
-                                    }
-                                },
-                                "hints": {},
-                            },
-                        ),
-                        "I0": MapAdapter(
-                            {},
-                            metadata={
-                                "data_keys": {
-                                    "I0-net_count": {
-                                        "dtype": "number",
-                                    }
-                                },
-                                "hints": {},
-                            },
-                        ),
+                "It": MapAdapter(
+                    {},
+                    metadata={
+                        "data_keys": {
+                            "It-net_count": {
+                                "dtype": "number",
+                            }
+                        },
+                        "hints": {},
+                    },
+                ),
+                "I0": MapAdapter(
+                    {},
+                    metadata={
+                        "data_keys": {
+                            "I0-net_count": {
+                                "dtype": "number",
+                            }
+                        },
+                        "hints": {},
                     },
                 ),
             },

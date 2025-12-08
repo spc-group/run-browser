@@ -30,6 +30,12 @@ def main(argv=None):
     parser.add_argument(
         "-v", "--verbose", action="count", help="Increase verbosity level.", default=0
     )
+    # Temporary bridge to get to a Tiled version that doesn't use the "streams/" node
+    parser.add_argument(
+        "--stream-prefix",
+        default="streams/",
+        help="Older versions of Tiled use an intermediate 'streams/' node for each run.",
+    )
 
     args, extra_args = parser.parse_known_args(sys.argv)
 
@@ -48,7 +54,7 @@ def main(argv=None):
     app.aboutToQuit.connect(app_close_event.set)
 
     main_window = RunBrowserMainWindow(
-        merge_streams=args.merge_streams,
+        merge_streams=args.merge_streams, stream_prefix=args.stream_prefix
     )
     main_window.show()
 

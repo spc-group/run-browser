@@ -11,12 +11,6 @@ from run_browser.client import DatabaseWorker
 run_metadata_urls = re.compile(
     r"^http://localhost:8000/api/v1/metadata/([a-z]+)%2F([-a-z0-9]+)$"
 )
-stream_metadata_urls = re.compile(
-    r"^http://localhost:8000/api/v1/metadata/"
-    r"([a-z]+)%2F"  # catalog name
-    r"([-a-z0-9]+)%2F"  # scan name
-    r"streams%2F([a-z]+)$"  # stream name
-)
 
 
 @pytest.fixture()
@@ -53,7 +47,7 @@ def run_metadata_api(httpx_mock):
 
 @pytest_asyncio.fixture()
 async def worker(tiled_client):
-    worker = DatabaseWorker()
+    worker = DatabaseWorker(stream_prefix="")
     worker.catalog = tiled_client
     return worker
 
@@ -154,40 +148,6 @@ async def test_datasets(worker, tiled_client):
 
 @pytest.mark.asyncio
 async def test_hints(worker):
-    # httpx_mock.add_response(
-    #     url=run_metadata_urls,
-    #     json=md_to_json(
-    #         {
-    #             "start": {
-    #                 "hints": {
-    #                     "dimensions": [
-    #                         [["aerotech_vert"], "primary"],
-    #                         [["aerotech_horiz"], "primary"],
-    #                     ],
-    #                 }
-    #             }
-    #         }
-    #     ),
-    # )
-    # # Respond with stream hints
-    # httpx_mock.add_response(
-    #     url=stream_metadata_urls,
-    #     json=md_to_json(
-    #         {
-    #             "hints": {
-    #                 "Ipreslit": {"fields": ["Ipreslit_net_counts"]},
-    #                 "CdnIPreKb": {"fields": ["CdnIPreKb_net_counts"]},
-    #                 "I0": {"fields": ["I0_net_counts"]},
-    #                 "CdnIt": {"fields": ["CdnIt_net_counts"]},
-    #                 "aerotech_vert": {"fields": ["aerotech_vert"]},
-    #                 "aerotech_horiz": {"fields": ["aerotech_horiz"]},
-    #                 "Ipre_KB": {"fields": ["Ipre_KB_net_counts"]},
-    #                 "CdnI0": {"fields": ["CdnI0_net_counts"]},
-    #                 "It": {"fields": ["It_net_counts"]},
-    #             },
-    #         }
-    #     ),
-    # )
     uids = [
         "85573831-f4b4-4f64-b613-a6007bf03a8d",
         "7d1daf1d-60c7-4aa7-a668-d1cd97e5335f",

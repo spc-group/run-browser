@@ -102,13 +102,13 @@ class RunBrowserMainWindow(QMainWindow):
         SPECTRA = 5
         VOLUME = 6
 
-    def __init__(self, *args, merge_streams: bool = True, **kwargs):
+    def __init__(self, *args, stream_prefix: str, merge_streams: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
         self.load_ui(merge_streams=merge_streams)
         self._running_db_tasks = {}
         self._busy_hinters = Counter()
         self.reset_default_filters()
-        self.db = DatabaseWorker()
+        self.db = DatabaseWorker(stream_prefix=stream_prefix)
 
     def show_message(self, message: str, delay: int | None = None):
         log.info(message)
@@ -328,7 +328,6 @@ class RunBrowserMainWindow(QMainWindow):
             self.ui.r_signal_combobox,
         ]
         for combobox, new_signals in zip(comboboxes, [xsigs, vsigs, vsigs]):
-            print(f"{use_hints=}, {xsigs=}, {vsigs=}")
             self._set_combobox_signals(combobox, new_signals)
 
     def _set_combobox_signals(self, combobox: QComboBox, signals: Sequence[DataSignal]):

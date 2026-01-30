@@ -178,6 +178,16 @@ async def test_stream_names(worker):
     assert sorted(stream_names) == ["baseline", "primary"]
 
 
+@pytest.mark.asyncio
+async def test_old_stream_names(worker):
+    """Older bluesky runs had an extra "streams" namespace, so make sure
+    we can handle that.
+
+    """
+    stream_names = await worker.stream_names(["old_streams_scan"])
+    assert sorted(stream_names) == ["streams/baseline", "streams/primary"]
+
+
 # -----------------------------------------------------------------------------
 # :author:    Mark Wolfman
 # :email:     wolfman@anl.gov

@@ -256,6 +256,22 @@ tree = MapAdapter(
                 },
             },
         ),
+        # Old run with the `streams/` namespace
+        "old_streams_scan": MapAdapter(
+            {
+                "streams": MapAdapter(
+                    {
+                        "primary": MapAdapter({}),
+                        "baseline": MapAdapter({}),
+                    },
+                ),
+            },
+            metadata={
+                "start": {
+                    "uid": "old_streams_scan",
+                }
+            },
+        ),
     }
 )
 

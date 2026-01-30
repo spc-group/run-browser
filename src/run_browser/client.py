@@ -53,17 +53,16 @@ class DatabaseWorker:
         self.stream_prefix = stream_prefix
         super().__init__()
 
-    async def _stream_names(self, run) -> list[str]:
+    async def _stream_names(self, run, prefix: str = "") -> list[str]:
         streams_node = run
-        if self.stream_prefix != "":
-            streams_node = await run[self.stream_prefix]
-        return [key async for key in streams_node.keys()]
+        streams = [f"{prefix}{key}" async for key in streams_node.keys()]
+        # Check if we have an old run with the "streams" namespace
+        if streams == ["streams"]:
+            return await self._stream_names(await run["streams"], prefix="streams/")
+        return streams
 
     async def stream_names(self, uids: Sequence[str]) -> list[str]:
         runs = self.runs(uids)
-
-        # awaitables = [scan.stream_names() for scan in self.selected_runs]
-        # all_streams = await asyncio.gather(*awaitables)
         async with asyncio.TaskGroup() as tg:
             tasks = [
                 tg.create_task(self._stream_names(run)) async for run in runs.values()

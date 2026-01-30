@@ -24,7 +24,7 @@ async def window(qtbot, mocker, tiled_client):
     mocker.patch(
         "run_browser.main_window.get_default_profile_name", return_value="cortex"
     )
-    window = RunBrowserMainWindow(stream_prefix="")
+    window = RunBrowserMainWindow()
     qtbot.addWidget(window)
     window.clear_filters()
     # Wait for the initial database load to process

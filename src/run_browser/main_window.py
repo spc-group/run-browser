@@ -102,13 +102,13 @@ class RunBrowserMainWindow(QMainWindow):
         SPECTRA = 5
         VOLUME = 6
 
-    def __init__(self, *args, stream_prefix: str, merge_streams: bool = True, **kwargs):
+    def __init__(self, *args, merge_streams: bool = True, **kwargs):
         super().__init__(*args, **kwargs)
         self.load_ui(merge_streams=merge_streams)
         self._running_db_tasks = {}
         self._busy_hinters = Counter()
         self.reset_default_filters()
-        self.db = DatabaseWorker(stream_prefix=stream_prefix)
+        self.db = DatabaseWorker()
 
     def show_message(self, message: str, delay: int | None = None):
         log.info(message)

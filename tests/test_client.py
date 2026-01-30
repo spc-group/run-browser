@@ -47,7 +47,7 @@ def run_metadata_api(httpx_mock):
 
 @pytest_asyncio.fixture()
 async def worker(tiled_client):
-    worker = DatabaseWorker(stream_prefix="")
+    worker = DatabaseWorker()
     worker.catalog = tiled_client
     return worker
 
